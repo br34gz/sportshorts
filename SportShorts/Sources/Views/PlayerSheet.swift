@@ -167,11 +167,28 @@ struct IFramePlayer: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         if context.coordinator.lastVideoId != videoId {
             context.coordinator.lastVideoId = videoId
-            // CodePen proxy URL — supports YouTube native player params via query string.
-            let urlStr = "https://cdpn.io/pen/debug/oNPzxKo?v=\(videoId)&autoplay=1&playsinline=1&mute=1&rel=0&modestbranding=1&iv_load_policy=3&fs=1"
-            if let url = URL(string: urlStr) {
-                webView.load(URLRequest(url: url))
-            }
+            // Wrap the CodePen proxy iframe in a custom HTML host so we can pass the
+            // full `allow` attribute set — accelerometer + gyroscope are what give
+            // the YouTube player permission to auto-rotate to landscape full-screen
+            // when the device turns.
+            let cdpnURL = "https://cdpn.io/pen/debug/oNPzxKo?v=\(videoId)&autoplay=1&playsinline=1&mute=1&rel=0&modestbranding=1&iv_load_policy=3&fs=1"
+            let html = """
+            <!DOCTYPE html>
+            <html><head>
+              <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+              <style>
+                html, body { margin:0; padding:0; background:#000; width:100vw; height:100vh; overflow:hidden; touch-action:manipulation; }
+                iframe { border:0; width:100%; height:100%; background:#000; display:block; }
+              </style>
+            </head><body>
+              <iframe
+                src="\(cdpnURL)"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                allowfullscreen="allowfullscreen"
+              ></iframe>
+            </body></html>
+            """
+            webView.loadHTMLString(html, baseURL: URL(string: "https://codepen.io"))
         }
     }
 
