@@ -59,11 +59,12 @@ struct PlayerSheet: View {
             skipRangesLoaded = true
         }
         .task {
-            if MatchStatsService.supports(competitionId: item.competitionId) {
+            if let compId = item.competitionId,
+               MatchStatsService.supports(competitionId: compId) {
                 matchStats = await MatchStatsService.fetchMatch(
                     title: item.title,
                     publishedAt: item.publishedAt,
-                    competitionId: item.competitionId
+                    competitionId: compId
                 )
             }
         }
@@ -109,7 +110,7 @@ private struct NavTitleBlock: View {
                 Image(systemName: item.sportIcon)
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.75))
-                Text(item.competitionLabel)
+                Text(item.competitionLabel ?? item.sportLabel)
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.75))
             }
