@@ -1,31 +1,27 @@
 import SwiftUI
 import WebKit
 
+/// "Browser-style" YouTube viewer: a WKWebView that loads the actual YouTube watch
+/// URL and stays out of YouTube's way layout-wise. We inject two helpers on top:
+///   1. SponsorBlock — auto-seeks past community-flagged sponsor / intro / outro
+///      segments returned by the SponsorBlock community API.
+///   2. Ad-skip — clicks YouTube's "Skip ad" button as soon as it appears.
+/// We also install a WKContentRuleList that blocks common ad-network domains
+/// (doubleclick, googleads, etc) at the network level.
 struct PlayerSheet: View {
     let item: VideoItem
     @Environment(\.dismiss) private var dismiss
-    @State private var loaded = false
-    @State private var unrecoverable = false
-    @State private var watchdog: Task<Void, Never>?
     @State private var skipRanges: [[Double]] = []
+    @State private var loadingSkipRanges = true
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
-
-                IFramePlayerView(
-                    videoId: item.id,
-                    skipRanges: skipRanges,
-                    onLoaded: { loaded = true; watchdog?.cancel() },
-                    onUnplayable: { unrecoverable = true }
-                )
-                .ignoresSafeArea(edges: .bottom)
-                .opacity(loaded && !unrecoverable ? 1 : 0)
-
-                if unrecoverable {
-                    embedFailedView
-                } else if !loaded {
+                if !loadingSkipRanges {
+                    YouTubeBrowserView(videoId: item.id, skipRanges: skipRanges)
+                        .ignoresSafeArea(edges: .bottom)
+                } else {
                     LiquidGlassLoader(title: item.title)
                 }
             }
@@ -46,50 +42,8 @@ struct PlayerSheet: View {
         }
         .preferredColorScheme(.dark)
         .task {
-            // Fire-and-forget: fetch SponsorBlock segments in parallel with the iframe load.
             skipRanges = await SponsorBlock.fetchSkipRanges(videoId: item.id)
-        }
-        .onAppear { startWatchdog() }
-        .onDisappear { watchdog?.cancel() }
-    }
-
-    private func startWatchdog() {
-        watchdog = Task {
-            try? await Task.sleep(nanoseconds: 7_000_000_000)
-            if !Task.isCancelled, !loaded {
-                await MainActor.run { unrecoverable = true }
-            }
-        }
-    }
-
-    private var embedFailedView: some View {
-        VStack(spacing: 18) {
-            Image(systemName: "rectangle.on.rectangle.slash")
-                .font(.system(size: 48))
-                .foregroundStyle(.white.opacity(0.55))
-            VStack(spacing: 6) {
-                Text("This one needs YouTube")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
-                Text("The publisher has restricted in-app playback for this video. Watch on YouTube and come back.")
-                    .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.65))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
-            }
-            Button {
-                UIApplication.shared.open(item.watchURL)
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "play.fill")
-                    Text("Watch on YouTube")
-                        .font(.headline)
-                }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 12)
-            }
-            .buttonStyle(.glass)
-            .tint(.white)
+            loadingSkipRanges = false
         }
     }
 }
@@ -143,158 +97,140 @@ private struct NavTitleBlock: View {
     }
 }
 
-// MARK: - Custom-HTML iframe player
+// MARK: - WKWebView "browser" loading YouTube directly
 
-/// Hosts a hand-built HTML page that contains a YouTube iframe sized to fill the
-/// WKWebView. Uses the YouTube IFrame Player API for state + error events. When
-/// SponsorBlock skip ranges are supplied, JS monitors the player's current time
-/// and seeks past any matching segment automatically.
-struct IFramePlayerView: UIViewRepresentable {
+struct YouTubeBrowserView: UIViewRepresentable {
     let videoId: String
     let skipRanges: [[Double]]
-    let onLoaded: () -> Void
-    let onUnplayable: () -> Void
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(onLoaded: onLoaded, onUnplayable: onUnplayable)
-    }
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
+        config.defaultWebpagePreferences.preferredContentMode = .mobile
+
         let userContent = WKUserContentController()
-        userContent.add(context.coordinator, name: "playerEvent")
+
+        let rangesJSON = (try? String(data: JSONSerialization.data(withJSONObject: skipRanges), encoding: .utf8)) ?? "[]"
+
+        // SponsorBlock + ad-skip helper injected at document end. Runs on every YouTube
+        // navigation; harmless on non-watch pages.
+        let helperJS = WKUserScript(
+            source: """
+            (function() {
+              const SKIP_RANGES = \(rangesJSON);
+
+              function getVideo() { return document.querySelector('video'); }
+
+              // SponsorBlock: leap past community-flagged segments.
+              function checkSponsorBlock() {
+                const v = getVideo();
+                if (!v || !SKIP_RANGES.length) return;
+                const t = v.currentTime;
+                for (const r of SKIP_RANGES) {
+                  const [start, end] = r;
+                  if (t >= start && t < end - 0.2) {
+                    v.currentTime = end;
+                    return;
+                  }
+                }
+              }
+
+              // Click YouTube's "Skip ad" button as soon as it appears.
+              function clickSkipAd() {
+                const sel = '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-modern';
+                const btns = document.querySelectorAll(sel);
+                for (const b of btns) {
+                  try { b.click(); } catch (e) {}
+                }
+              }
+
+              // Mute pre-roll ads as a fallback for non-skippable ones.
+              function muteDuringAd() {
+                const v = getVideo();
+                if (!v) return;
+                const adShown = !!(document.querySelector('.ad-showing, .ytp-ad-player-overlay, .ytp-ad-module'));
+                if (adShown && !v.dataset.sportshortsMuted) {
+                  v.dataset.sportshortsMuted = '1';
+                  v.muted = true;
+                } else if (!adShown && v.dataset.sportshortsMuted === '1') {
+                  v.dataset.sportshortsMuted = '';
+                  v.muted = false;
+                }
+              }
+
+              setInterval(function() {
+                try { checkSponsorBlock(); clickSkipAd(); muteDuringAd(); } catch (e) {}
+              }, 250);
+            })();
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: false
+        )
+        userContent.addUserScript(helperJS)
+
         config.userContentController = userContent
+
+        // Network-level ad blocking via WKContentRuleList. Applied async at first
+        // load — falls back gracefully if compilation fails.
         let webView = WKWebView(frame: .zero, configuration: config)
-        webView.scrollView.isScrollEnabled = false
-        webView.scrollView.bounces = false
+        webView.allowsBackForwardNavigationGestures = false
+        webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
         webView.isOpaque = false
         webView.backgroundColor = .black
         webView.scrollView.backgroundColor = .black
         webView.navigationDelegate = context.coordinator
+
+        installAdBlocker(on: webView)
+
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        let rangesJSON = (try? String(data: JSONSerialization.data(withJSONObject: skipRanges), encoding: .utf8)) ?? "[]"
-        webView.loadHTMLString(html(rangesJSON: rangesJSON), baseURL: URL(string: "https://www.youtube.com"))
+        let url = URL(string: "https://m.youtube.com/watch?v=\(videoId)")!
+        if webView.url != url {
+            webView.load(URLRequest(url: url))
+        }
     }
 
-    private func html(rangesJSON: String) -> String {
-        """
-        <!DOCTYPE html>
-        <html><head>
-          <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-          <style>
-            html, body {
-              margin: 0; padding: 0;
-              background: #000;
-              width: 100vw; height: 100vh;
-              overflow: hidden;
-              touch-action: manipulation;
-            }
-            #player-wrap {
-              position: absolute; inset: 0;
-              display: flex; align-items: center; justify-content: center;
-            }
-            #player {
-              width: 100vw; height: 100vh;
-              border: 0; background: #000;
-            }
-          </style>
-        </head>
-        <body>
-          <div id="player-wrap"><div id="player"></div></div>
-          <script>
-            const SKIP_RANGES = \(rangesJSON);
-            let player;
-            let monitor;
+    private func installAdBlocker(on webView: WKWebView) {
+        // Minimal block list — common ad/tracking endpoints used by YouTube and others.
+        let rules: [[String: Any]] = [
+            ["trigger": ["url-filter": #".*doubleclick\.net.*"#],
+             "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*googleadservices\.com.*"#],
+             "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*googlesyndication\.com.*"#],
+             "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*adservice\.google\..*"#],
+             "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*google-analytics\.com.*"#],
+             "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*youtube\.com\/api\/stats\/ads.*"#],
+             "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*youtube\.com\/pagead\/.*"#],
+             "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*\/get_midroll_info.*"#],
+             "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*\/ad_companion.*"#],
+             "action": ["type": "block"]],
+        ]
 
-            function post(payload) {
-              try { window.webkit.messageHandlers.playerEvent.postMessage(payload); } catch (e) {}
-            }
+        guard let data = try? JSONSerialization.data(withJSONObject: rules),
+              let json = String(data: data, encoding: .utf8) else { return }
 
-            const tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            document.head.appendChild(tag);
-
-            function onYouTubeIframeAPIReady() {
-              player = new YT.Player('player', {
-                width: '100%',
-                height: '100%',
-                videoId: '\(videoId)',
-                playerVars: {
-                  autoplay: 1,
-                  playsinline: 1,
-                  rel: 0,
-                  modestbranding: 1,
-                  iv_load_policy: 3,
-                  fs: 1,
-                  controls: 1
-                },
-                events: {
-                  onReady: function(e) {
-                    post({type:'ready'});
-                    // Try to play (autoplay isn't always honoured)
-                    try { e.target.playVideo(); } catch (err) {}
-                    // Start SponsorBlock monitor
-                    if (SKIP_RANGES.length > 0) {
-                      monitor = setInterval(() => {
-                        try {
-                          const t = e.target.getCurrentTime();
-                          for (const r of SKIP_RANGES) {
-                            const [start, end] = r;
-                            if (t >= start && t < end - 0.2) {
-                              e.target.seekTo(end, true);
-                              break;
-                            }
-                          }
-                        } catch (err) {}
-                      }, 250);
-                    }
-                  },
-                  onError: function(e) {
-                    // 2 = invalid parameter; 5 = HTML5 player error;
-                    // 100 = video not found; 101 = embed disabled; 150 = embed disabled (alt).
-                    if (e.data === 100 || e.data === 101 || e.data === 150) {
-                      post({type: 'unplayable', code: e.data});
-                    } else {
-                      post({type: 'error', code: e.data});
-                    }
-                  }
-                }
-              });
-            }
-          </script>
-        </body></html>
-        """
+        WKContentRuleListStore.default()?.compileContentRuleList(
+            forIdentifier: "SportShortsAdBlock",
+            encodedContentRuleList: json
+        ) { list, _ in
+            if let list { webView.configuration.userContentController.add(list) }
+        }
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
-        let onLoaded: () -> Void
-        let onUnplayable: () -> Void
-        private var loadedReported = false
-
-        init(onLoaded: @escaping () -> Void, onUnplayable: @escaping () -> Void) {
-            self.onLoaded = onLoaded
-            self.onUnplayable = onUnplayable
-        }
-
-        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
-            switch type {
-            case "ready":
-                if !loadedReported {
-                    loadedReported = true
-                    onLoaded()
-                }
-            case "unplayable":
-                onUnplayable()
-            default:
-                break
-            }
-        }
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        // Optional: trap external links so navigation away from YouTube opens externally.
     }
 }
 
