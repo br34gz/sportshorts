@@ -89,7 +89,11 @@ private struct CountryRow: View {
         .padding(.vertical, 14)
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .glassEffect(isSelected ? .regular.tint(Color.accentColor.opacity(0.3)).interactive() : .regular)
+                .fill(isSelected ? AnyShapeStyle(Color.accentColor.opacity(0.18)) : AnyShapeStyle(.ultraThinMaterial))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(isSelected ? Color.accentColor.opacity(0.6) : Color.white.opacity(0.08), lineWidth: isSelected ? 1.5 : 0.5)
+                }
         }
     }
 }
@@ -211,7 +215,11 @@ private struct SportRow: View {
         }
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .glassEffect(.regular)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
+                }
         }
         .animation(.easeInOut(duration: 0.18), value: expanded)
     }
