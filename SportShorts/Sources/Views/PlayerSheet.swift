@@ -13,27 +13,14 @@ struct PlayerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var skipRanges: [[Double]] = []
     @State private var loadingSkipRanges = true
-    @State private var browser: YouTubeBrowserController?
-    @State private var showPlayTapOverlay = true
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
                 if !loadingSkipRanges {
-                    YouTubeBrowserView(
-                        videoId: item.id,
-                        skipRanges: skipRanges,
-                        controller: $browser
-                    )
-                    .ignoresSafeArea(edges: .bottom)
-
-                    if showPlayTapOverlay {
-                        TapToPlayOverlay {
-                            browser?.startPlayback()
-                            showPlayTapOverlay = false
-                        }
-                    }
+                    YouTubeBrowserView(videoId: item.id, skipRanges: skipRanges)
+                        .ignoresSafeArea(edges: .bottom)
                 } else {
                     LiquidGlassLoader(title: item.title)
                 }
@@ -112,34 +99,9 @@ private struct NavTitleBlock: View {
 
 // MARK: - WKWebView "browser" loading YouTube directly
 
-/// Lightweight controller bridge — gives the SwiftUI parent a handle to call
-/// `startPlayback()` on the underlying WebView when the user taps the overlay.
-final class YouTubeBrowserController {
-    weak var webView: WKWebView?
-    func startPlayback() {
-        let js = """
-        (function() {
-          const v = document.querySelector('video');
-          if (!v) return;
-          v.muted = false;
-          v.playsInline = true;
-          v.setAttribute('playsinline', 'true');
-          v.setAttribute('webkit-playsinline', 'true');
-          const p = v.play();
-          if (p && p.catch) p.catch(() => {
-            const btn = document.querySelector('.ytp-large-play-button, .ytm-play-button, .ytp-play-button');
-            if (btn) btn.click();
-          });
-        })();
-        """
-        webView?.evaluateJavaScript(js)
-    }
-}
-
 struct YouTubeBrowserView: UIViewRepresentable {
     let videoId: String
     let skipRanges: [[Double]]
-    @Binding var controller: YouTubeBrowserController?
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -150,44 +112,31 @@ struct YouTubeBrowserView: UIViewRepresentable {
         config.defaultWebpagePreferences.preferredContentMode = .mobile
 
         let userContent = WKUserContentController()
-
         let rangesJSON = (try? String(data: JSONSerialization.data(withJSONObject: skipRanges), encoding: .utf8)) ?? "[]"
 
-        // SponsorBlock + ad-skip helper injected at document end. Runs on every YouTube
-        // navigation; harmless on non-watch pages.
+        // SponsorBlock-only helper. NO ad-skip clicks, NO automated mute/unmute —
+        // earlier versions of those handlers were interfering with iOS's
+        // gesture-tracking for media playback. Now we just observe currentTime
+        // and seek past community-flagged segments. Everything else is YouTube's job.
         let helperJS = WKUserScript(
             source: """
             (function() {
               const SKIP_RANGES = \(rangesJSON);
-
-              function getVideo() { return document.querySelector('video'); }
-
-              // SponsorBlock: leap past community-flagged segments.
-              function checkSponsorBlock() {
-                const v = getVideo();
-                if (!v || !SKIP_RANGES.length) return;
-                const t = v.currentTime;
-                for (const r of SKIP_RANGES) {
-                  const [start, end] = r;
-                  if (t >= start && t < end - 0.2) {
-                    v.currentTime = end;
-                    return;
-                  }
-                }
-              }
-
-              // Click YouTube's "Skip ad" button as soon as it appears.
-              function clickSkipAd() {
-                const sel = '.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button.ytp-ad-skip-button-modern';
-                const btns = document.querySelectorAll(sel);
-                for (const b of btns) {
-                  try { b.click(); } catch (e) {}
-                }
-              }
-
+              if (!SKIP_RANGES.length) return;
               setInterval(function() {
-                try { checkSponsorBlock(); clickSkipAd(); } catch (e) {}
-              }, 250);
+                try {
+                  const v = document.querySelector('video');
+                  if (!v) return;
+                  const t = v.currentTime;
+                  for (const r of SKIP_RANGES) {
+                    const [start, end] = r;
+                    if (t >= start && t < end - 0.2) {
+                      v.currentTime = end;
+                      return;
+                    }
+                  }
+                } catch (e) {}
+              }, 300);
             })();
             """,
             injectionTime: .atDocumentEnd,
@@ -208,15 +157,6 @@ struct YouTubeBrowserView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
 
         installAdBlocker(on: webView)
-
-        // Expose the WebView to the parent via the controller bridge so it can
-        // trigger `video.play()` in a user-gesture context when the overlay is tapped.
-        DispatchQueue.main.async {
-            let c = YouTubeBrowserController()
-            c.webView = webView
-            self.controller = c
-        }
-
         return webView
     }
 
