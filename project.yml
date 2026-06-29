@@ -1,0 +1,69 @@
+# Project spec consumed by XcodeGen. Generates SportShorts.xcodeproj.
+# Run locally: xcodegen generate
+# In CI: the build workflow installs XcodeGen then runs xcodegen generate before xcodebuild archive.
+
+name: SportShorts
+options:
+  bundleIdPrefix: dev.sb86
+  deploymentTarget:
+    iOS: "26.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    DEVELOPMENT_TEAM: ""
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    GENERATE_INFOPLIST_FILE: NO
+    CODE_SIGN_IDENTITY: ""
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGNING_ALLOWED: NO
+
+targets:
+  SportShorts:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: SportShorts/Sources
+      - path: SportShorts/Resources
+        excludes:
+          - Info.plist
+    resources:
+      - path: SportShorts/Resources/Assets.xcassets
+      - path: SportShorts/Resources/bundled_channels.json
+    info:
+      path: SportShorts/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: SportShorts
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UILaunchScreen:
+          UIColorName: AccentColor
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIDeviceFamily:
+          - 1
+        UIRequiresFullScreen: false
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+          NSExceptionDomains:
+            youtube.com:
+              NSIncludesSubdomains: true
+              NSExceptionAllowsInsecureHTTPLoads: false
+              NSExceptionRequiresForwardSecrecy: true
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_NAME: SportShorts
+        PRODUCT_BUNDLE_IDENTIFIER: dev.sb86.sportshorts
+        TARGETED_DEVICE_FAMILY: "1"
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        SWIFT_EMIT_LOC_STRINGS: YES
+        ENABLE_PREVIEWS: YES
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

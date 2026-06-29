@@ -1,0 +1,75 @@
+name: Build unsigned IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build SportShorts.ipa
+    runs-on: macos-26
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode (latest)
+        run: |
+          # macos-26 ships with Xcode 26.x — use the highest available.
+          sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer" || true
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - name: Install XcodeGen
+        run: |
+          brew install xcodegen
+
+      - name: Generate Xcode project
+        run: |
+          xcodegen generate
+          ls -la SportShorts.xcodeproj/
+
+      - name: Build archive (no signing)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project SportShorts.xcodeproj \
+            -scheme SportShorts \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/SportShorts.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            archive | xcbeautify --renderer github-actions || \
+          xcodebuild \
+            -project SportShorts.xcodeproj \
+            -scheme SportShorts \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/SportShorts.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM="" \
+            archive
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p build/Payload
+          cp -R build/SportShorts.xcarchive/Products/Applications/SportShorts.app build/Payload/
+          cd build
+          /usr/bin/zip -qry SportShorts-unsigned.ipa Payload/
+          ls -lh SportShorts-unsigned.ipa
+          unzip -l SportShorts-unsigned.ipa | head -10
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SportShorts-unsigned-ipa
+          path: build/SportShorts-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
