@@ -16,10 +16,11 @@ enum FeedFetcher {
             }
         }
 
-        // Deduplicate by video ID then sort newest-first.
+        // Deduplicate by video ID, filter to match-highlight titles, then sort newest-first.
         var seen = Set<String>()
         let deduped = merged.filter { seen.insert($0.id).inserted }
-        return deduped.sorted { $0.publishedAt > $1.publishedAt }
+        let filtered = deduped.filter { HighlightsFilter.isMatchHighlight(title: $0.title) }
+        return filtered.sorted { $0.publishedAt > $1.publishedAt }
     }
 
     private static func fetchChannel(_ channel: ChannelEntry) async throws -> [VideoItem] {

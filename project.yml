@@ -12,6 +12,11 @@ options:
   generateEmptyDirectories: true
   groupSortPosition: top
 
+packages:
+  YouTubeKit:
+    url: https://github.com/alexeichhorn/YouTubeKit
+    from: "0.2.5"
+
 settings:
   base:
     SWIFT_VERSION: "5.10"
@@ -28,6 +33,8 @@ targets:
     type: application
     platform: iOS
     deploymentTarget: "26.0"
+    dependencies:
+      - package: YouTubeKit
     sources:
       - path: SportShorts/Sources
       - path: SportShorts/Resources

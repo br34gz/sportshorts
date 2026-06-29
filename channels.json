@@ -104,6 +104,13 @@
       "channel_id": "UC0jPwNs4B7yJySNewHan5hQ",
       "handle": "@StanSportFootball",
       "note": "Stan Sport — AU EPL rights-holder. Posts clip-form coverage and 'Added Time' content; full match highlights are paywalled."
+    },
+    {
+      "sport": "Football",
+      "competition": "FIFA World Cup (SBS Sport)",
+      "channel_id": "UCn6UMS98Ox-B3jkSWlweJ2w",
+      "handle": "@SBSSport",
+      "note": "SBS Sport — Australian rights-holder for the FIFA World Cup. Posts per-match highlights for both Men's and Women's World Cup matches within hours of full-time."
     }
   ],
   "UK": [
