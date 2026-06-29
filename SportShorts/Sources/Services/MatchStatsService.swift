@@ -1,10 +1,8 @@
 import Foundation
 
-/// Pulls completed-match data from ESPN's public scoreboard JSON for football
-/// competitions, then matches it to a video title via team-name parsing.
-///
-/// Free, no API key, used elsewhere in the project for the daily news Match
-/// Results section.
+/// Pulls completed-match data from ESPN's public scoreboard JSON for the
+/// supported team sports, then matches it to a video title via team-name
+/// parsing. Free, no API key.
 
 struct MatchStats: Hashable {
     let homeTeam: String
@@ -13,48 +11,144 @@ struct MatchStats: Hashable {
     let awayTeam: String
     let awayAbbr: String
     let awayScore: Int
-    let detail: String              // "FT", "FT-Pens", etc
+    let detail: String              // "FT", "Final", "Final/OT", etc
     let kickoff: Date?
-    let competitionName: String?    // "FIFA World Cup 2026"
+    let competitionName: String?
     let venue: String?
-    let lines: [StatLine]           // shots, possession, fouls etc
+    let lines: [StatLine]
 
     struct StatLine: Hashable {
         let label: String
         let home: String
         let away: String
-        /// 0.0 → fully favours away; 1.0 → fully favours home. Used for the bar overlay.
+        /// 0.0 → fully favours away; 1.0 → fully favours home. Drives the bar overlay.
         let homeRatio: Double?
     }
 }
 
 enum MatchStatsService {
 
-    /// Mapping from our internal competition IDs to ESPN's soccer league slugs.
-    private static let espnSlug: [String: String] = [
-        "fifa_wc":    "fifa.world",
-        "epl":        "eng.1",
-        "laliga":     "esp.1",
-        "bundesliga": "ger.1",
-        "ligue1":     "fra.1",
-        "seriea":     "ita.1",
-        "ucl":        "uefa.champions",
-        "uel":        "uefa.europa",
-        "fac":        "eng.fa",
-        "efl":        "eng.league_cup",
+    /// Maps our internal competition IDs to ESPN sport+league slugs + the per-sport
+    /// stat fields we want to surface. Stat keys come from ESPN's `statistics[].name`;
+    /// labels are what we render in the UI.
+    private struct SportConfig {
+        let espnSport: String
+        let espnLeague: String
+        let stats: [(key: String, label: String, isPercent: Bool)]
+    }
+
+    private static let configs: [String: SportConfig] = [
+        // Soccer
+        "fifa_wc":    .init(espnSport: "soccer", espnLeague: "fifa.world",     stats: soccerStats),
+        "epl":        .init(espnSport: "soccer", espnLeague: "eng.1",          stats: soccerStats),
+        "laliga":     .init(espnSport: "soccer", espnLeague: "esp.1",          stats: soccerStats),
+        "bundesliga": .init(espnSport: "soccer", espnLeague: "ger.1",          stats: soccerStats),
+        "ligue1":     .init(espnSport: "soccer", espnLeague: "fra.1",          stats: soccerStats),
+        "seriea":     .init(espnSport: "soccer", espnLeague: "ita.1",          stats: soccerStats),
+        "ucl":        .init(espnSport: "soccer", espnLeague: "uefa.champions", stats: soccerStats),
+        "uel":        .init(espnSport: "soccer", espnLeague: "uefa.europa",    stats: soccerStats),
+        "fac":        .init(espnSport: "soccer", espnLeague: "eng.fa",         stats: soccerStats),
+        "efl":        .init(espnSport: "soccer", espnLeague: "eng.league_cup", stats: soccerStats),
+
+        // Basketball
+        "nba": .init(espnSport: "basketball", espnLeague: "nba", stats: basketballStats),
+        "nbl": .init(espnSport: "basketball", espnLeague: "nbl", stats: basketballStats),
+
+        // American football
+        "nfl": .init(espnSport: "football",   espnLeague: "nfl", stats: nflStats),
+
+        // Ice hockey
+        "nhl": .init(espnSport: "hockey",     espnLeague: "nhl", stats: nhlStats),
+
+        // Australian Rules
+        "afl": .init(espnSport: "aussie-football", espnLeague: "afl", stats: aflStats),
+
+        // Rugby League
+        "nrl": .init(espnSport: "rugby-league", espnLeague: "nrl", stats: nrlStats),
+    ]
+
+    private static let soccerStats: [(String, String, Bool)] = [
+        ("possessionPct",   "Possession",       true),
+        ("totalShots",      "Shots",            false),
+        ("shotsOnTarget",   "Shots on target",  false),
+        ("foulsCommitted",  "Fouls",            false),
+        ("yellowCards",     "Yellow cards",     false),
+        ("redCards",        "Red cards",        false),
+        ("offsides",        "Offsides",         false),
+        ("wonCorners",      "Corners",          false),
+        ("totalPasses",     "Passes",           false),
+        ("accuratePasses",  "Pass accuracy",    true),
+    ]
+
+    private static let basketballStats: [(String, String, Bool)] = [
+        ("fieldGoalsMade-fieldGoalsAttempted",         "Field Goals",  false),
+        ("fieldGoalPct",                               "FG %",         true),
+        ("threePointFieldGoalsMade-threePointFieldGoalsAttempted", "3-Pointers", false),
+        ("threePointFieldGoalPct",                     "3-Pt %",       true),
+        ("freeThrowsMade-freeThrowsAttempted",         "Free Throws",  false),
+        ("totalRebounds",                              "Rebounds",     false),
+        ("assists",                                    "Assists",      false),
+        ("steals",                                     "Steals",        false),
+        ("blocks",                                     "Blocks",        false),
+        ("turnovers",                                  "Turnovers",     false),
+        ("personalFouls",                              "Fouls",         false),
+    ]
+
+    private static let nflStats: [(String, String, Bool)] = [
+        ("firstDowns",         "1st Downs",       false),
+        ("totalYards",         "Total Yards",     false),
+        ("yardsPerPlay",       "Yards / Play",    false),
+        ("passingYards",       "Passing Yards",   false),
+        ("rushingYards",       "Rushing Yards",   false),
+        ("turnovers",          "Turnovers",       false),
+        ("possessionTime",     "Possession",      false),
+        ("totalPenaltyYards",  "Penalty Yards",   false),
+        ("thirdDownEff",       "3rd Down",        false),
+        ("redZoneAttempts",    "Red Zone",        false),
+    ]
+
+    private static let nhlStats: [(String, String, Bool)] = [
+        ("goals",                "Goals",          false),
+        ("shotsTotal",           "Shots",          false),
+        ("faceoffWinPercent",    "Faceoff %",      true),
+        ("powerPlayGoals",       "PP Goals",       false),
+        ("penaltyMinutes",       "PIM",            false),
+        ("hits",                 "Hits",           false),
+        ("blockedShots",         "Blocks",         false),
+        ("giveaways",            "Giveaways",      false),
+        ("takeaways",            "Takeaways",      false),
+    ]
+
+    private static let aflStats: [(String, String, Bool)] = [
+        ("goals",       "Goals",     false),
+        ("behinds",     "Behinds",   false),
+        ("marks",       "Marks",     false),
+        ("disposals",   "Disposals", false),
+        ("kicks",       "Kicks",     false),
+        ("handballs",   "Handballs", false),
+        ("tackles",     "Tackles",   false),
+        ("inside50s",   "Inside 50s", false),
+    ]
+
+    private static let nrlStats: [(String, String, Bool)] = [
+        ("tries",            "Tries",      false),
+        ("conversions",      "Goals",      false),
+        ("penaltyGoals",     "Pen Goals",  false),
+        ("metres",           "Run Metres", false),
+        ("tackles",          "Tackles",    false),
+        ("missedTackles",    "Missed Tk",  false),
+        ("offloads",         "Offloads",   false),
+        ("possessionPct",    "Possession", true),
+        ("completionRate",   "Completion %", true),
     ]
 
     static func supports(competitionId: String) -> Bool {
-        espnSlug[competitionId] != nil
+        configs[competitionId] != nil
     }
 
     /// Try to find a completed match matching the given video.
-    /// - Parameters:
-    ///   - title: the YouTube video title to parse team names from
-    ///   - publishedAt: when the video was posted (typically same day as kickoff)
-    ///   - competitionId: which competition the video belongs to
     static func fetchMatch(title: String, publishedAt: Date, competitionId: String) async -> MatchStats? {
-        guard let slug = espnSlug[competitionId] else { return nil }
+        guard let config = configs[competitionId] else { return nil }
         guard let teamHints = parseTeams(from: title) else { return nil }
 
         let dayFormatter: DateFormatter = {
@@ -65,11 +159,10 @@ enum MatchStatsService {
         }()
 
         // Highlight videos are usually posted same-day or 1 day after kickoff.
-        // Try [publishedAt - 1 day, publishedAt, publishedAt + 1 day] in turn.
         for delta in [0, -1, -2, 1] {
             let day = Calendar(identifier: .gregorian).date(byAdding: .day, value: delta, to: publishedAt) ?? publishedAt
             let dateStr = dayFormatter.string(from: day)
-            if let stats = await fetchAndMatch(slug: slug, dateStr: dateStr, hints: teamHints) {
+            if let stats = await fetchAndMatch(config: config, dateStr: dateStr, hints: teamHints) {
                 return stats
             }
         }
@@ -78,10 +171,10 @@ enum MatchStatsService {
 
     // MARK: - Internal
 
-    private static func fetchAndMatch(slug: String, dateStr: String, hints: TeamHints) async -> MatchStats? {
-        let summaryListURL = URL(string: "https://site.api.espn.com/apis/site/v2/sports/soccer/\(slug)/scoreboard?dates=\(dateStr)")!
+    private static func fetchAndMatch(config: SportConfig, dateStr: String, hints: TeamHints) async -> MatchStats? {
+        let scoreboardURL = URL(string: "https://site.api.espn.com/apis/site/v2/sports/\(config.espnSport)/\(config.espnLeague)/scoreboard?dates=\(dateStr)")!
         do {
-            var req = URLRequest(url: summaryListURL)
+            var req = URLRequest(url: scoreboardURL)
             req.timeoutInterval = 8
             let (data, _) = try await URLSession.shared.data(for: req)
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -103,9 +196,8 @@ enum MatchStatsService {
                 let awayName = teamName(away)
                 if !teamsMatch(homeName: homeName, awayName: awayName, hints: hints) { continue }
 
-                // Found our match — pull score + summary.
-                let homeScore = Int(String(home["score"] as? String ?? "0")) ?? 0
-                let awayScore = Int(String(away["score"] as? String ?? "0")) ?? 0
+                let homeScore = Int(home["score"] as? String ?? "0") ?? 0
+                let awayScore = Int(away["score"] as? String ?? "0") ?? 0
                 let detail = (stype["detail"] as? String) ?? "FT"
                 let venue = (comp["venue"] as? [String: Any])?["fullName"] as? String
 
@@ -115,7 +207,7 @@ enum MatchStatsService {
                 }
 
                 let eventId = event["id"] as? String ?? ""
-                let lines = await fetchStatLines(slug: slug, eventId: eventId, homeAbbr: teamAbbr(home), awayAbbr: teamAbbr(away))
+                let lines = await fetchStatLines(config: config, eventId: eventId, homeAbbr: teamAbbr(home), awayAbbr: teamAbbr(away))
 
                 return MatchStats(
                     homeTeam: homeName,
@@ -137,60 +229,39 @@ enum MatchStatsService {
         return nil
     }
 
-    /// Fetch per-match team statistics from ESPN's summary endpoint.
-    private static func fetchStatLines(slug: String, eventId: String, homeAbbr: String, awayAbbr: String) async -> [MatchStats.StatLine] {
+    private static func fetchStatLines(config: SportConfig, eventId: String, homeAbbr: String, awayAbbr: String) async -> [MatchStats.StatLine] {
         guard !eventId.isEmpty else { return [] }
-        let summaryURL = URL(string: "https://site.api.espn.com/apis/site/v2/sports/soccer/\(slug)/summary?event=\(eventId)")!
+        let summaryURL = URL(string: "https://site.api.espn.com/apis/site/v2/sports/\(config.espnSport)/\(config.espnLeague)/summary?event=\(eventId)")!
         do {
             var req = URLRequest(url: summaryURL)
             req.timeoutInterval = 8
             let (data, _) = try await URLSession.shared.data(for: req)
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
-
-            // Team stats live under `boxscore.teams[].statistics[]`.
             guard let boxscore = root["boxscore"] as? [String: Any],
                   let teams = boxscore["teams"] as? [[String: Any]],
                   teams.count == 2 else { return [] }
 
-            let homeStats = teams.first(where: { (($0["homeAway"] as? String) ?? ($0["team"] as? [String: Any])?["abbreviation"] as? String) == "home" || (($0["team"] as? [String: Any])?["abbreviation"] as? String) == homeAbbr }) ?? teams[0]
+            let homeStats = teams.first(where: { (($0["team"] as? [String: Any])?["abbreviation"] as? String) == homeAbbr }) ?? teams[0]
             let awayStats = teams.first(where: { ($0 as NSObject) !== (homeStats as NSObject) }) ?? teams[1]
 
-            let homeArr = (homeStats["statistics"] as? [[String: Any]]) ?? []
-            let awayArr = (awayStats["statistics"] as? [[String: Any]]) ?? []
-
-            // Build keyed lookups
             var homeByKey: [String: String] = [:]
-            for s in homeArr {
+            for s in (homeStats["statistics"] as? [[String: Any]]) ?? [] {
                 if let n = s["name"] as? String, let v = s["displayValue"] as? String {
                     homeByKey[n] = v
                 }
             }
             var awayByKey: [String: String] = [:]
-            for s in awayArr {
+            for s in (awayStats["statistics"] as? [[String: Any]]) ?? [] {
                 if let n = s["name"] as? String, let v = s["displayValue"] as? String {
                     awayByKey[n] = v
                 }
             }
 
-            // The stats we want to surface, in display order, with human labels.
-            let wanted: [(String, String)] = [
-                ("possessionPct", "Possession"),
-                ("totalShots", "Shots"),
-                ("shotsOnTarget", "Shots on target"),
-                ("foulsCommitted", "Fouls"),
-                ("yellowCards", "Yellow cards"),
-                ("redCards", "Red cards"),
-                ("offsides", "Offsides"),
-                ("wonCorners", "Corners"),
-                ("totalPasses", "Passes"),
-                ("accuratePasses", "Pass accuracy"),
-            ]
-
             var lines: [MatchStats.StatLine] = []
-            for (key, label) in wanted {
+            for (key, label, _) in config.stats {
                 guard let h = homeByKey[key], let a = awayByKey[key] else { continue }
-                let homeNum = Double(h.replacingOccurrences(of: "%", with: "")) ?? 0
-                let awayNum = Double(a.replacingOccurrences(of: "%", with: "")) ?? 0
+                let homeNum = Double(numericPart(h)) ?? 0
+                let awayNum = Double(numericPart(a)) ?? 0
                 let total = homeNum + awayNum
                 let ratio: Double? = total > 0 ? max(0, min(1, homeNum / total)) : nil
                 lines.append(.init(label: label, home: h, away: a, homeRatio: ratio))
@@ -201,7 +272,18 @@ enum MatchStatsService {
         }
     }
 
-    // MARK: - Team-name parsing + matching
+    /// Extract a leading numeric portion from values like "45-92" / "12:34" / "58.4%"
+    /// so we can compute a ratio for the bar visualization.
+    private static func numericPart(_ s: String) -> String {
+        var out = ""
+        for ch in s {
+            if ch.isNumber || ch == "." { out.append(ch) }
+            else { break }
+        }
+        return out.isEmpty ? "0" : out
+    }
+
+    // MARK: - Team name parsing + matching (unchanged from prior)
 
     struct TeamHints {
         let homeTokens: [String]
@@ -209,20 +291,15 @@ enum MatchStatsService {
     }
 
     private static func parseTeams(from title: String) -> TeamHints? {
-        // Look for "X v Y" or "X vs Y", possibly with a colon / dash / | suffix afterwards.
         let pattern = #"\b([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3})\s+(?:v|vs|vs\.)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3})\b"#
         guard let r = title.range(of: pattern, options: .regularExpression) else { return nil }
         let chunk = String(title[r])
-        // Re-split the chunk on " v " / " vs ".
         let separators = [" v ", " vs ", " vs. "]
         for sep in separators {
             if let range = chunk.range(of: sep) {
                 let left = String(chunk[..<range.lowerBound])
                 let right = String(chunk[range.upperBound...])
-                return TeamHints(
-                    homeTokens: tokenize(left),
-                    awayTokens: tokenize(right)
-                )
+                return TeamHints(homeTokens: tokenize(left), awayTokens: tokenize(right))
             }
         }
         return nil
@@ -239,7 +316,6 @@ enum MatchStatsService {
     private static func teamsMatch(homeName: String, awayName: String, hints: TeamHints) -> Bool {
         let espnHomeTokens = tokenize(homeName)
         let espnAwayTokens = tokenize(awayName)
-        // Sometimes ESPN's home/away mapping flips. Accept either ordering.
         return overlaps(espnHomeTokens, hints.homeTokens) && overlaps(espnAwayTokens, hints.awayTokens)
             || overlaps(espnHomeTokens, hints.awayTokens) && overlaps(espnAwayTokens, hints.homeTokens)
     }

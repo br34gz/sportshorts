@@ -278,13 +278,25 @@ struct StatsPanel: View {
 
     private var revealedContent: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                scoreBlock
-                Divider().background(.white.opacity(0.15))
-                statsLines
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                Section {
+                    VStack(spacing: 10) {
+                        statsLines
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 24)
+                } header: {
+                    VStack(spacing: 12) {
+                        scoreBlock
+                        Rectangle().fill(Color.white.opacity(0.15)).frame(height: 0.5)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 4)
+                    .background(.ultraThinMaterial)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 16)
         }
     }
 
