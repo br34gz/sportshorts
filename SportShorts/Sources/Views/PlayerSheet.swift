@@ -272,25 +272,67 @@ struct MobileYouTubeWebView: UIViewRepresentable {
         (function() {
           let reportedReady = false;
           let attemptedPlay = false;
+          let unmutedOnTap = false;
+
+          // Force the YouTube player container to fill the viewport. YouTube's mobile
+          // layout otherwise sizes the player to a 16:9 slice in the middle of the page.
+          function fitPlayer() {
+            const candidates = [
+              '#movie_player',
+              'ytm-player',
+              '.html5-video-player',
+              '.player-container',
+              'ytm-watch-flexy-player-container',
+              'ytm-watch-flexy'
+            ];
+            for (const sel of candidates) {
+              const el = document.querySelector(sel);
+              if (el) {
+                el.style.setProperty('position', 'fixed', 'important');
+                el.style.setProperty('top', '0', 'important');
+                el.style.setProperty('left', '0', 'important');
+                el.style.setProperty('right', '0', 'important');
+                el.style.setProperty('bottom', '0', 'important');
+                el.style.setProperty('width', '100vw', 'important');
+                el.style.setProperty('height', '100vh', 'important');
+                el.style.setProperty('max-width', 'none', 'important');
+                el.style.setProperty('max-height', 'none', 'important');
+                el.style.setProperty('z-index', '99999', 'important');
+                el.style.setProperty('background', '#000', 'important');
+              }
+            }
+            // The video element itself: fill its container.
+            const v = document.querySelector('video');
+            if (v) {
+              v.style.setProperty('width', '100vw', 'important');
+              v.style.setProperty('height', '100vh', 'important');
+              v.style.setProperty('object-fit', 'contain', 'important');
+              v.style.setProperty('background', '#000', 'important');
+            }
+          }
 
           function tryPlay() {
             if (attemptedPlay) return;
             const video = document.querySelector('video');
             if (!video) return;
             attemptedPlay = true;
-            // 1) Try the HTML5 play API directly.
             const p = video.play();
             if (p && p.catch) {
               p.catch(() => {
-                // Autoplay was blocked. 2) Synthesize a click on the YouTube play button overlay.
                 const btn = document.querySelector('.ytp-large-play-button, .ytm-play-button, button[aria-label*="Play" i], .ytp-play-button');
                 if (btn) btn.click();
               });
             }
           }
 
+          // On the first user tap anywhere in the page, unmute.
+          document.addEventListener('click', function() {
+            if (unmutedOnTap) return;
+            const v = document.querySelector('video');
+            if (v) { v.muted = false; unmutedOnTap = true; }
+          }, true);
+
           function check() {
-            // YouTube renders various error containers; look for any of them.
             const errSelectors = [
               '.ytp-error', '.ytm-player-error', '.player-unavailable',
               'ytm-player-error-message-renderer', 'ytm-alert-renderer'
@@ -307,6 +349,7 @@ struct MobileYouTubeWebView: UIViewRepresentable {
                 }
               }
             }
+            fitPlayer();
             const video = document.querySelector('video');
             if (video) {
               if (!reportedReady) {
@@ -318,8 +361,8 @@ struct MobileYouTubeWebView: UIViewRepresentable {
               tryPlay();
             }
           }
-          setInterval(check, 600);
-          setTimeout(check, 200);
+          setInterval(check, 400);
+          setTimeout(check, 100);
         })();
         """
     }
