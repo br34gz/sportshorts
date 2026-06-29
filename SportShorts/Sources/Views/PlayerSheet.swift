@@ -171,7 +171,12 @@ struct IFramePlayer: UIViewRepresentable {
             // full `allow` attribute set — accelerometer + gyroscope are what give
             // the YouTube player permission to auto-rotate to landscape full-screen
             // when the device turns.
-            let cdpnURL = "https://cdpn.io/pen/debug/oNPzxKo?v=\(videoId)&autoplay=1&playsinline=1&mute=1&rel=0&modestbranding=1&iv_load_policy=3&fs=1"
+            // Drop mute=1 so the first tap on YouTube's play button gives sound
+            // from frame 0 instead of the user needing a second tap on
+            // "tap to unmute". iOS Safari blocks unmuted autoplay regardless,
+            // so the video will appear paused on a thumbnail until the user
+            // taps play — that tap is the user gesture iOS requires.
+            let cdpnURL = "https://cdpn.io/pen/debug/oNPzxKo?v=\(videoId)&playsinline=1&rel=0&modestbranding=1&iv_load_policy=3&fs=1"
             let html = """
             <!DOCTYPE html>
             <html><head>
