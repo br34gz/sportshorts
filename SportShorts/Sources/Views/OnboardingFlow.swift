@@ -97,7 +97,7 @@ private struct CountryRow: View {
         .padding(.vertical, 14)
         .background {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .glassEffect(isSelected ? .regular.tint(.accent.opacity(0.3)).interactive() : .regular)
+                .glassEffect(isSelected ? .regular.tint(Color.accentColor.opacity(0.3)).interactive() : .regular)
         }
     }
 }
@@ -188,13 +188,13 @@ private struct CompetitionToggle: View {
                 Spacer()
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.title2)
-                    .foregroundStyle(isSelected ? .tint : .secondary)
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 14)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .glassEffect(isSelected ? .regular.tint(.accent.opacity(0.25)).interactive() : .regular)
+                    .glassEffect(isSelected ? .regular.tint(Color.accentColor.opacity(0.25)).interactive() : .regular)
             }
         }
         .buttonStyle(.plain)
