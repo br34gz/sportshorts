@@ -13,14 +13,27 @@ struct PlayerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var skipRanges: [[Double]] = []
     @State private var loadingSkipRanges = true
+    @State private var browser: YouTubeBrowserController?
+    @State private var showPlayTapOverlay = true
 
     var body: some View {
         NavigationStack {
             ZStack {
                 Color.black.ignoresSafeArea()
                 if !loadingSkipRanges {
-                    YouTubeBrowserView(videoId: item.id, skipRanges: skipRanges)
-                        .ignoresSafeArea(edges: .bottom)
+                    YouTubeBrowserView(
+                        videoId: item.id,
+                        skipRanges: skipRanges,
+                        controller: $browser
+                    )
+                    .ignoresSafeArea(edges: .bottom)
+
+                    if showPlayTapOverlay {
+                        TapToPlayOverlay {
+                            browser?.startPlayback()
+                            showPlayTapOverlay = false
+                        }
+                    }
                 } else {
                     LiquidGlassLoader(title: item.title)
                 }
@@ -99,9 +112,34 @@ private struct NavTitleBlock: View {
 
 // MARK: - WKWebView "browser" loading YouTube directly
 
+/// Lightweight controller bridge — gives the SwiftUI parent a handle to call
+/// `startPlayback()` on the underlying WebView when the user taps the overlay.
+final class YouTubeBrowserController {
+    weak var webView: WKWebView?
+    func startPlayback() {
+        let js = """
+        (function() {
+          const v = document.querySelector('video');
+          if (!v) return;
+          v.muted = false;
+          v.playsInline = true;
+          v.setAttribute('playsinline', 'true');
+          v.setAttribute('webkit-playsinline', 'true');
+          const p = v.play();
+          if (p && p.catch) p.catch(() => {
+            const btn = document.querySelector('.ytp-large-play-button, .ytm-play-button, .ytp-play-button');
+            if (btn) btn.click();
+          });
+        })();
+        """
+        webView?.evaluateJavaScript(js)
+    }
+}
+
 struct YouTubeBrowserView: UIViewRepresentable {
     let videoId: String
     let skipRanges: [[Double]]
+    @Binding var controller: YouTubeBrowserController?
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -147,22 +185,8 @@ struct YouTubeBrowserView: UIViewRepresentable {
                 }
               }
 
-              // Mute pre-roll ads as a fallback for non-skippable ones.
-              function muteDuringAd() {
-                const v = getVideo();
-                if (!v) return;
-                const adShown = !!(document.querySelector('.ad-showing, .ytp-ad-player-overlay, .ytp-ad-module'));
-                if (adShown && !v.dataset.sportshortsMuted) {
-                  v.dataset.sportshortsMuted = '1';
-                  v.muted = true;
-                } else if (!adShown && v.dataset.sportshortsMuted === '1') {
-                  v.dataset.sportshortsMuted = '';
-                  v.muted = false;
-                }
-              }
-
               setInterval(function() {
-                try { checkSponsorBlock(); clickSkipAd(); muteDuringAd(); } catch (e) {}
+                try { checkSponsorBlock(); clickSkipAd(); } catch (e) {}
               }, 250);
             })();
             """,
@@ -184,6 +208,14 @@ struct YouTubeBrowserView: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
 
         installAdBlocker(on: webView)
+
+        // Expose the WebView to the parent via the controller bridge so it can
+        // trigger `video.play()` in a user-gesture context when the overlay is tapped.
+        DispatchQueue.main.async {
+            let c = YouTubeBrowserController()
+            c.webView = webView
+            self.controller = c
+        }
 
         return webView
     }
@@ -231,6 +263,50 @@ struct YouTubeBrowserView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         // Optional: trap external links so navigation away from YouTube opens externally.
+    }
+}
+
+// MARK: - Tap-to-play overlay (user-gesture relay)
+
+/// Full-bleed transparent button that the user taps once to satisfy iOS's
+/// "audio playback requires a user gesture" rule. On tap, calls the closure
+/// (which invokes `video.play()` in JS) and removes itself.
+struct TapToPlayOverlay: View {
+    let onTap: () -> Void
+    @State private var pulse = false
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.45)
+            VStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 88, height: 88)
+                        .scaleEffect(pulse ? 1.05 : 0.95)
+                    Circle()
+                        .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                        .frame(width: 88, height: 88)
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 34))
+                        .foregroundStyle(.white)
+                        .offset(x: 3)
+                }
+                Text("Tap to play")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Text("(unlocks sound & playback)")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.65))
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { onTap() }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) { pulse = true }
+        }
+        .transition(.opacity)
+        .ignoresSafeArea()
     }
 }
 
