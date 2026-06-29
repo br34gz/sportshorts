@@ -1,5 +1,41 @@
 {
-  "AU": [],
+  "AU": [
+    {
+      "sport": "Rugby League",
+      "competition": "NRL",
+      "channel_id": "UC33-OkQ6VCYk8xtml8Pk4-g",
+      "handle": "@NRL",
+      "note": "Official NRL channel."
+    },
+    {
+      "sport": "Australian Rules",
+      "competition": "AFL",
+      "channel_id": "UCxAeHdLDAatFV_vt95MSO-g",
+      "handle": "@AFL",
+      "note": "Official AFL channel."
+    },
+    {
+      "sport": "Football",
+      "competition": "A-Leagues",
+      "channel_id": "UCzRogd_oK3bzKvAW-4aLuPQ",
+      "handle": "@aleagues",
+      "note": "Official A-Leagues channel."
+    },
+    {
+      "sport": "Cricket",
+      "competition": "Cricket Australia",
+      "channel_id": "UCkBY0aHJP9BwjZLDYxAQrKg",
+      "handle": "@cricketcomau",
+      "note": "Cricket Australia."
+    },
+    {
+      "sport": "Football",
+      "competition": "Premier League",
+      "channel_id": "UCG5qGWdu8nIRZqJ_GgDwQ-w",
+      "handle": "@PremierLeague",
+      "note": "Official Premier League."
+    }
+  ],
   "UK": [],
   "US": [],
   "IE": [],
