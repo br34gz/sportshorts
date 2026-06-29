@@ -104,18 +104,14 @@ struct PlayerSheet: View {
         }
     }
 
-    private func pickBestStream(_ streams: [Stream]) -> Stream? {
-        // Prefer streams that contain both video and audio in one file (progressive),
-        // which AVPlayer can play directly without HLS muxing.
-        let progressive = streams.filter { $0.includesVideoAndAudioTrack }
-        if let best = progressive.max(by: { ($0.videoResolution?.height ?? 0) < ($1.videoResolution?.height ?? 0) }) {
-            return best
-        }
-        // Otherwise: highest-resolution video-only stream — AVPlayer can usually play these.
-        let videoOnly = streams.filter { $0.includesVideoTrack }
-        if let best = videoOnly.max(by: { ($0.videoResolution?.height ?? 0) < ($1.videoResolution?.height ?? 0) }) {
-            return best
-        }
+    private func pickBestStream(_ streams: [YouTubeKit.Stream]) -> YouTubeKit.Stream? {
+        // Prefer streams the library tags as natively-playable (progressive MP4 / etc).
+        let nativelyPlayable = streams.filter { $0.isNativelyPlayable }
+        if let best = nativelyPlayable.highestResolutionStream() { return best }
+
+        // Otherwise: highest-resolution progressive (video+audio) stream.
+        if let best = streams.filterVideoAndAudio().highestResolutionStream() { return best }
+
         return streams.first
     }
 }
