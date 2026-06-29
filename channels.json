@@ -109,8 +109,9 @@
       "sport": "Football",
       "competition": "FIFA World Cup",
       "channel_id": "UCn6UMS98Ox-B3jkSWlweJ2w",
+      "playlist_id": "PLNuJDkj3zBvPVhoKC6Oq8j4w7AH9l-ejG",
       "handle": "@SBSSport",
-      "note": "SBS Sport — Australian rights-holder for the FIFA World Cup. Posts per-match highlights for both Men's and Women's World Cup matches within hours of full-time."
+      "note": "SBS Sport — AU rights-holder. Pull from the 'FIFA World Cup 2026™ Match Highlights' playlist specifically, since the channel root is flooded with non-match clips and bumps real highlights out of the RSS feed quickly."
     }
   ],
   "UK": [

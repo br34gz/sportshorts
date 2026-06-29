@@ -24,8 +24,7 @@ enum FeedFetcher {
     }
 
     private static func fetchChannel(_ channel: ChannelEntry) async throws -> [VideoItem] {
-        let url = URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channel.channelId)")!
-        var req = URLRequest(url: url)
+        var req = URLRequest(url: channel.feedURL)
         req.timeoutInterval = 8
         let (data, _) = try await URLSession.shared.data(for: req)
         return try RSSParser.parse(data, for: channel)

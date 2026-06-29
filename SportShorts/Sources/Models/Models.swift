@@ -27,12 +27,25 @@ struct ChannelEntry: Identifiable, Hashable, Codable {
     let channelId: String       // "UCxxxxxxxxxxxxxxxxxxxx"
     let handle: String?         // "@NRL"
     let note: String?
+    /// Optional override: pull videos from this YouTube playlist instead of the channel's
+    /// latest-15 feed. Useful when a channel posts many small clips and the actual match
+    /// highlights live in a specific playlist (e.g. SBS Sport's FIFA World Cup playlist).
+    let playlistId: String?
 
-    var id: String { channelId }
+    var id: String { (playlistId ?? "") + ":" + channelId }
+
+    /// The RSS URL we should hit for this entry's videos.
+    var feedURL: URL {
+        if let pid = playlistId {
+            return URL(string: "https://www.youtube.com/feeds/videos.xml?playlist_id=\(pid)")!
+        }
+        return URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channelId)")!
+    }
 
     enum CodingKeys: String, CodingKey {
         case sport, competition, handle, note
         case channelId = "channel_id"
+        case playlistId = "playlist_id"
     }
 }
 
