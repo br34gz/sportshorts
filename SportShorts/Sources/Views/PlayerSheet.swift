@@ -11,32 +11,27 @@ struct PlayerSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Player block: WKWebView underneath, black overlay above to mask YouTube
-                // chrome (related videos / comments / description — which may contain
-                // spoilers).
-                GeometryReader { geo in
-                    let videoHeight = min(geo.size.height * 0.45, geo.size.width * 9 / 16)
-                    ZStack(alignment: .top) {
-                        YouTubeBrowserView(
-                            videoId: item.id,
-                            skipRanges: skipRanges,
-                            skipRangesLoaded: skipRangesLoaded
-                        )
-                        VStack(spacing: 0) {
-                            Color.clear.frame(height: videoHeight)
-                            Color.black
-                        }
-                        .allowsHitTesting(false)
-                    }
-                }
-                .frame(maxHeight: .infinity)
-                .background(Color.black)
+            GeometryReader { geo in
+                let videoHeight = geo.size.width * 9 / 16
+                VStack(spacing: 0) {
+                    // Player: WKWebView clipped to just the 16:9 strip. Injected CSS
+                    // hides YouTube's top bar so the player sits at Y=0.
+                    YouTubeBrowserView(
+                        videoId: item.id,
+                        skipRanges: skipRanges,
+                        skipRangesLoaded: skipRangesLoaded
+                    )
+                    .frame(height: videoHeight)
+                    .clipped()
 
-                // Stats panel (football only, when ESPN has the match)
-                if let stats = matchStats {
-                    StatsPanel(stats: stats, revealed: $revealStats)
-                        .frame(maxHeight: 360)
+                    // Stats panel (football only, when ESPN has the match)
+                    if let stats = matchStats {
+                        StatsPanel(stats: stats, revealed: $revealStats)
+                    } else {
+                        // Fill remaining height with black so the masked YouTube page below
+                        // (still loaded in the WebView but clipped off-screen) is invisible.
+                        Color.black
+                    }
                 }
             }
             .background(Color.black.ignoresSafeArea())
@@ -116,6 +111,25 @@ struct YouTubeBrowserView: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = []
 
         let userContent = WKUserContentController()
+
+        // Inject minimal CSS at document-start to hide YouTube's mobile top bar so
+        // the player sits at Y=0 and fills width. We don't touch the player itself
+        // or any "below the player" structure — that's clipped off-screen in SwiftUI.
+        let chromeCSS = """
+        ytm-mobile-topbar-renderer,
+        .mobile-topbar-header-content,
+        header[role=banner],
+        #masthead-container,
+        ytm-app-header-renderer { display:none !important; }
+        html, body { background:#000 !important; margin:0 !important; padding:0 !important; }
+        """
+        let cssScript = WKUserScript(
+            source: "(function(){var s=document.createElement('style');s.textContent=`\(chromeCSS)`;document.documentElement.appendChild(s);})();",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        )
+        userContent.addUserScript(cssScript)
+
         config.userContentController = userContent
 
         let webView = WKWebView(frame: .zero, configuration: config)
