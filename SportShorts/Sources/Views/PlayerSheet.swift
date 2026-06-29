@@ -27,23 +27,25 @@ struct PlayerSheet: View {
                 .ignoresSafeArea(edges: .bottom)
                 .opacity(loaded && !unrecoverable ? 1 : 0)
 
-                if !unrecoverable {
-                    OverlayBanner(item: item)
-                        .padding(.top, 8)
-                        .padding(.horizontal, 12)
-                        .opacity(loaded ? 1 : 0)
-                        .animation(.easeInOut(duration: 0.3), value: loaded)
-                }
-
                 if unrecoverable {
                     embedFailedView
                 } else if !loaded {
                     LiquidGlassLoader(title: item.title)
                 }
             }
-            .navigationTitle(item.competition)
-            .toolbarTitleDisplayMode(.inline)
-            .toolbar { toolbarContent }
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    NavTitleBlock(item: item)
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    ShareLink(item: item.watchURL) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+            }
             .toolbarBackground(.black, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
@@ -107,40 +109,27 @@ struct PlayerSheet: View {
     }
 }
 
-// MARK: - Title-derived overlay banner
+// MARK: - Nav-bar title block (matchup + competition)
 
-private struct OverlayBanner: View {
+private struct NavTitleBlock: View {
     let item: VideoItem
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: sportIcon)
-                .font(.headline)
+        VStack(spacing: 1) {
+            Text(matchupOrTitle)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(item.competition)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white)
-                Text(matchupOrTitle)
+                .lineLimit(1)
+            HStack(spacing: 5) {
+                Image(systemName: sportIcon)
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.75))
-                    .lineLimit(1)
+                Text(item.competition)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.75))
             }
-            Spacer()
-            Text(item.publishedAt, format: .relative(presentation: .numeric))
-                .font(.caption2)
-                .foregroundStyle(.white.opacity(0.7))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background {
-            Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    Capsule(style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5)
-                )
-        }
+        .frame(maxWidth: 240)
     }
 
     private var sportIcon: String {
@@ -161,7 +150,6 @@ private struct OverlayBanner: View {
         }
     }
 
-    /// Best-effort: extract "Team A v Team B" out of the title and present that.
     private var matchupOrTitle: String {
         let pattern = #"\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\s+v(?:s|s\.)?\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\b"#
         if let r = item.title.range(of: pattern, options: .regularExpression) {
@@ -192,8 +180,8 @@ struct MobileYouTubeWebView: UIViewRepresentable {
         config.mediaTypesRequiringUserActionForPlayback = []
         config.defaultWebpagePreferences.preferredContentMode = .mobile
 
-        // Inject CSS that strips YouTube's chrome — keeps the player visible and hides
-        // navigation, related videos, comments, "up next" panels.
+        // Inject CSS that strips YouTube's chrome AND locks the page in a non-scrollable
+        // state so it stays fixed on the player.
         let css = """
         ytm-mobile-topbar-renderer,
         ytm-pivot-bar-renderer,
@@ -209,16 +197,34 @@ struct MobileYouTubeWebView: UIViewRepresentable {
         ytm-section-list-renderer,
         ytm-feed-filter-chip-bar-renderer,
         ytm-companion-slot,
+        ytm-watch-below-the-player-area,
         .floating-button-wrap-bottom,
         .mobile-topbar-header-content,
         .item-section,
         .single-column-watch-next-modern-panels,
+        ytm-modal-with-title-and-button-renderer,
+        ytm-comments-entry-point-header-renderer,
+        ytm-related-video-list-renderer,
+        ytm-rich-section-renderer,
+        ytm-info-panel-content-renderer,
         #masthead-container,
+        #related,
         #scroll-container,
         ytm-button-renderer[button-renderer][role=button] { display:none !important; }
 
-        body, html { background:#000 !important; }
-        ytd-player, ytm-player, .player-container, #player { background:#000 !important; }
+        html, body {
+          background:#000 !important;
+          margin:0 !important; padding:0 !important;
+          overflow:hidden !important;
+          height:100% !important; width:100% !important;
+          position:fixed !important;
+          touch-action: none !important;
+          -webkit-user-select: none !important;
+        }
+        ytd-player, ytm-player, .player-container, #player {
+          background:#000 !important;
+          position:fixed !important; inset:0 !important;
+        }
         """
         let cssScript = WKUserScript(
             source: "var s=document.createElement('style');s.textContent=`\(css)`;document.documentElement.appendChild(s);",
@@ -244,8 +250,13 @@ struct MobileYouTubeWebView: UIViewRepresentable {
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = .black
+        webView.scrollView.isScrollEnabled = false
         webView.scrollView.backgroundColor = .black
         webView.scrollView.bounces = false
+        webView.scrollView.bouncesZoom = false
+        webView.scrollView.maximumZoomScale = 1.0
+        webView.scrollView.minimumZoomScale = 1.0
+        webView.scrollView.pinchGestureRecognizer?.isEnabled = false
         webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
         webView.navigationDelegate = context.coordinator
         return webView
@@ -259,21 +270,36 @@ struct MobileYouTubeWebView: UIViewRepresentable {
     private var errorWatchJS: String {
         """
         (function() {
-          let reported = false;
+          let reportedReady = false;
+          let attemptedPlay = false;
+
+          function tryPlay() {
+            if (attemptedPlay) return;
+            const video = document.querySelector('video');
+            if (!video) return;
+            attemptedPlay = true;
+            // 1) Try the HTML5 play API directly.
+            const p = video.play();
+            if (p && p.catch) {
+              p.catch(() => {
+                // Autoplay was blocked. 2) Synthesize a click on the YouTube play button overlay.
+                const btn = document.querySelector('.ytp-large-play-button, .ytm-play-button, button[aria-label*="Play" i], .ytp-play-button');
+                if (btn) btn.click();
+              });
+            }
+          }
+
           function check() {
-            if (reported) return;
             // YouTube renders various error containers; look for any of them.
             const errSelectors = [
               '.ytp-error', '.ytm-player-error', '.player-unavailable',
-              'ytm-player-error-message-renderer', 'ytm-alert-renderer',
-              '.message-renderer'
+              'ytm-player-error-message-renderer', 'ytm-alert-renderer'
             ];
             for (const sel of errSelectors) {
               const el = document.querySelector(sel);
               if (el && el.offsetParent !== null) {
                 const txt = (el.textContent || '').toLowerCase();
-                if (txt.includes('unavailable') || txt.includes("can't play") || txt.includes("error") || txt.length > 10) {
-                  reported = true;
+                if (txt.includes('unavailable') || txt.includes("can't play") || txt.includes("error")) {
                   if (window.webkit && window.webkit.messageHandlers.playerEvent) {
                     window.webkit.messageHandlers.playerEvent.postMessage({type: 'error'});
                   }
@@ -281,16 +307,18 @@ struct MobileYouTubeWebView: UIViewRepresentable {
                 }
               }
             }
-            // Heuristic: a successfully loaded watch page has a video element
             const video = document.querySelector('video');
             if (video) {
-              if (window.webkit && window.webkit.messageHandlers.playerEvent) {
-                window.webkit.messageHandlers.playerEvent.postMessage({type: 'ready'});
+              if (!reportedReady) {
+                reportedReady = true;
+                if (window.webkit && window.webkit.messageHandlers.playerEvent) {
+                  window.webkit.messageHandlers.playerEvent.postMessage({type: 'ready'});
+                }
               }
+              tryPlay();
             }
           }
-          // Initial pass + an interval to catch async error renders.
-          setInterval(check, 800);
+          setInterval(check, 600);
           setTimeout(check, 200);
         })();
         """
