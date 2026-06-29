@@ -11,9 +11,13 @@ enum ChannelCatalog {
     static let cacheTTL: TimeInterval = 60 * 60 * 24    // 24h
 
     static func load(forceRefresh: Bool = false) async -> ChannelCatalogPayload {
-        // Try cache-first paint for snappy launch.
+        // Try cache-first paint for snappy launch — but only if the cached
+        // payload is non-empty. An empty cache (e.g. from an earlier build
+        // that shipped before channels.json was populated) must not satisfy
+        // the cache check, otherwise we'd serve nothing until TTL expires.
         if !forceRefresh,
            let cached = loadFromCache(),
+           !isEmpty(cached),
            let mtime = cacheMtime(),
            Date().timeIntervalSince(mtime) < cacheTTL {
             return cached
@@ -25,13 +29,18 @@ enum ChannelCatalog {
             return remote
         }
 
-        // Stale cache (older than TTL) better than nothing.
-        if let cached = loadFromCache() {
+        // Stale-but-non-empty cache better than nothing.
+        if let cached = loadFromCache(), !isEmpty(cached) {
             return cached
         }
 
         // Bundle fallback.
         return loadFromBundle() ?? [:]
+    }
+
+    /// A catalog is "empty" if every country's channel list is empty.
+    private static func isEmpty(_ payload: ChannelCatalogPayload) -> Bool {
+        payload.values.allSatisfy { $0.isEmpty }
     }
 
     private static func fetchRemote() async -> ChannelCatalogPayload? {

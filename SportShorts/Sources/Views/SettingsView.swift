@@ -50,6 +50,9 @@ struct SettingsView: View {
                     LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                     LabeledContent("Build", value: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—")
                     Link("GitHub", destination: URL(string: "https://github.com/sb86-dev/sportshorts")!)
+                    Button("Refresh channel catalog") {
+                        Task { session.catalog = await ChannelCatalog.load(forceRefresh: true) }
+                    }
                 }
             }
             .navigationTitle("Settings")
