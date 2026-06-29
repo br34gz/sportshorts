@@ -1,50 +1,81 @@
 import Foundation
 
-/// Heuristic filter to keep only "real match highlight" videos and drop reels,
-/// shorts, player-of-the-week clips, news segments, etc.
+/// Heuristic filter to keep only real per-match highlight videos, excluding
+/// reels, season compilations, top-N clips, shorts, pressers, podcasts, etc.
 enum HighlightsFilter {
 
     static func isMatchHighlight(title: String) -> Bool {
         let lower = title.lowercased()
 
-        // Hard rejects.
-        let reject = [
-            "#shorts", "shorts", "#short", "tiktok", "instagram",
-            "best moments of", "top 10", "top ten", "top 5", "top five",
-            "player of the week", "player of the month", "all goals", "all tries",
-            "all sixes", "all wickets", "moment of the year", "every goal", "every try",
-            "every wicket", "all wickets", "compilation",
-            "press conference", "presser", "interview", "post-match interview",
-            "media call", "media conference", "newsbreak", "opinion",
-            "tribute", "preview", "the panel", "podcast", "fans react",
+        // 1. Hard rejects — any of these wins, video is dropped.
+        let rejectKeywords: [String] = [
+            "#shorts", " shorts ", "shorts |", "tiktok", "instagram",
+            "best moments", "best of", "best try", "best tries", "best goal", "best goals",
+            "best moment", "best save", "best saves", "best wickets", "best catches",
+            "biggest", "incredible", "insane", "amazing", "stunning", "epic", "wild",
+            "must-see", "must see", "wow",
+            "top 5", "top 10", "top ten", "top five",
+            "of the week", "of the month", "of the season", "of the year",
+            "every goal", "every try", "every wicket", "every six", "every basket",
+            "all goals", "all tries", "all wickets", "all sixes", "all dunks",
+            "player of", "team of",
+            "compilation",
+            "press conference", "presser", "post-match interview",
+            "media call", "media conference",
+            "preview", "podcast", "fans react", "tribute",
+            "behind the scenes", "bonus features", "extras",
+            "escapes", "tackles only", "saves only", "goals only",
+            "ranked", "moments only",
         ]
-        for kw in reject where lower.contains(kw) {
+        for kw in rejectKeywords where lower.contains(kw) {
             return false
         }
 
-        // Strong positives — title looks like a recap.
-        let positives = [
-            "match highlights", "match recap", "extended highlights", "full highlights",
-            "highlights:", "recap:", "match report", "test highlights",
-            "round-up", " ft ", " full-time", " - highlights", "| highlights",
-            "highlight package",
-        ]
-        for kw in positives where lower.contains(kw) {
+        // Reject "Rounds X-Y" / "Rounds X to Y" — these are season compilations.
+        if lower.range(of: #"rounds?\s+\d+\s*[-–to]+\s*\d"#, options: .regularExpression) != nil {
+            return false
+        }
+
+        // 2. Positive signals — must match at least one of these to be kept.
+
+        let hasHighlightWord = lower.contains("highlight") || lower.contains("recap")
+
+        // (a) "match highlights", "extended highlights", "full highlights", "match recap"
+        if lower.contains("match highlights") ||
+           lower.contains("match recap") ||
+           lower.contains("extended highlights") ||
+           lower.contains("full highlights") {
             return true
         }
 
-        // Soft positive: "Team A v Team B" / "Team A vs Team B" pattern + has "highlights" loosely.
-        let teamVsPattern = #"\b[A-Z][a-zA-Z]+(?:[ -][A-Z][a-zA-Z]+)*\s+(?:v|vs|vs\.)\s+[A-Z][a-zA-Z]+(?:[ -][A-Z][a-zA-Z]+)*\b"#
-        if let _ = title.range(of: teamVsPattern, options: .regularExpression) {
-            // The presence of the matchup pattern is informative but not enough on its own —
-            // require either "highlights" or "recap" elsewhere in the title.
-            if lower.contains("highlight") || lower.contains("recap") {
-                return true
-            }
+        // (b) Single "Round N" reference (not a range) + highlights/recap word.
+        if hasHighlightWord,
+           lower.range(of: #"round\s+\d+\b"#, options: .regularExpression) != nil {
+            return true
         }
 
-        // Last-resort accept: title plainly contains "highlights" or "recap" without rejected words.
-        if lower.contains("highlights") || lower.contains("recap") {
+        // (c) Score pattern (e.g. "Liverpool 3-1 Man United", "21-7", "South Africa 3 Canada 0").
+        if title.range(of: #"\b\d{1,3}\s*[-–]\s*\d{1,3}\b"#, options: .regularExpression) != nil,
+           hasHighlightWord {
+            return true
+        }
+
+        // (d) "Team A v(s) Team B" pattern with two capitalized phrases + highlights word.
+        let teamVsTeam = #"\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\s+v(?:s|s\.)?\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\b"#
+        if title.range(of: teamVsTeam, options: .regularExpression) != nil,
+           hasHighlightWord {
+            return true
+        }
+
+        // (e) "Test highlights" / "Test Match" — typical cricket / rugby Test marker.
+        if lower.contains("test highlights") || lower.contains("test match highlights") {
+            return true
+        }
+
+        // (f) "Highlights:" or "| Highlights" form (suffix or colon) — common for tournament games.
+        if lower.contains("| highlights") ||
+           lower.contains(": highlights") ||
+           lower.contains("highlights:") {
             return true
         }
 
