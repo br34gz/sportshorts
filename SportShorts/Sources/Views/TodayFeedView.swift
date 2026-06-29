@@ -31,7 +31,7 @@ struct TodayFeedView: View {
                     .refreshable { await refresh() }
                 }
             }
-            .navigationTitle("Today")
+            .navigationTitle("Highlights")
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

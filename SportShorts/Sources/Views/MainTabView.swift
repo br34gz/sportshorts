@@ -5,7 +5,7 @@ struct MainTabView: View {
 
     var body: some View {
         TabView {
-            Tab("Today", systemImage: "sparkles") {
+            Tab("Highlights", systemImage: "film.stack") {
                 TodayFeedView()
             }
             Tab("Browse", systemImage: "square.grid.2x2") {

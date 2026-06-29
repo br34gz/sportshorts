@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write    # needed to create the GitHub Release
+
 jobs:
   build:
     name: Build SportShorts.ipa
@@ -15,16 +18,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode (latest)
+      - name: Select Xcode (latest 26.x)
         run: |
-          # macos-26 ships with Xcode 26.x — use the highest available.
           sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer" || true
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
 
       - name: Install XcodeGen
-        run: |
-          brew install xcodegen
+        run: brew install xcodegen
 
       - name: Generate Xcode project
         run: |
@@ -44,17 +45,6 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="" \
-            archive | xcbeautify --renderer github-actions || \
-          xcodebuild \
-            -project SportShorts.xcodeproj \
-            -scheme SportShorts \
-            -configuration Release \
-            -destination 'generic/platform=iOS' \
-            -archivePath build/SportShorts.xcarchive \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            DEVELOPMENT_TEAM="" \
             archive
 
       - name: Package unsigned IPA
@@ -64,12 +54,29 @@ jobs:
           cd build
           /usr/bin/zip -qry SportShorts-unsigned.ipa Payload/
           ls -lh SportShorts-unsigned.ipa
-          unzip -l SportShorts-unsigned.ipa | head -10
 
-      - name: Upload artifact
+      - name: Upload artifact (zip; raw .ipa is also published as a release asset below)
         uses: actions/upload-artifact@v4
         with:
           name: SportShorts-unsigned-ipa
           path: build/SportShorts-unsigned.ipa
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish as latest release (direct .ipa download)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: "SportShorts build #${{ github.run_number }}"
+          body: |
+            Auto-built unsigned IPA for sideload via LiveContainer.
+
+            Commit: ${{ github.sha }}
+            Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Permanent latest-build URL:
+            https://github.com/${{ github.repository }}/releases/latest/download/SportShorts-unsigned.ipa
+          files: build/SportShorts-unsigned.ipa
+          make_latest: true
+          draft: false
+          prerelease: false
