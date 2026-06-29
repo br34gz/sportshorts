@@ -7,21 +7,17 @@ struct PlayerSheet: View {
     @State private var loaded = false
     @State private var unrecoverable = false
     @State private var watchdog: Task<Void, Never>?
+    @State private var skipRanges: [[Double]] = []
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
+            ZStack {
                 Color.black.ignoresSafeArea()
 
-                // Mobile YouTube site in a WKWebView — not the iframe-embed API.
-                // Publishers can disable iframe embedding (Error 152-4), but the
-                // full YouTube site usually still plays.
-                MobileYouTubeWebView(
+                IFramePlayerView(
                     videoId: item.id,
-                    onLoaded: {
-                        loaded = true
-                        watchdog?.cancel()
-                    },
+                    skipRanges: skipRanges,
+                    onLoaded: { loaded = true; watchdog?.cancel() },
                     onUnplayable: { unrecoverable = true }
                 )
                 .ignoresSafeArea(edges: .bottom)
@@ -34,9 +30,7 @@ struct PlayerSheet: View {
                 }
             }
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    NavTitleBlock(item: item)
-                }
+                ToolbarItem(placement: .principal) { NavTitleBlock(item: item) }
                 ToolbarItem(placement: .topBarLeading) {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                 }
@@ -51,13 +45,17 @@ struct PlayerSheet: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
         }
         .preferredColorScheme(.dark)
+        .task {
+            // Fire-and-forget: fetch SponsorBlock segments in parallel with the iframe load.
+            skipRanges = await SponsorBlock.fetchSkipRanges(videoId: item.id)
+        }
         .onAppear { startWatchdog() }
         .onDisappear { watchdog?.cancel() }
     }
 
     private func startWatchdog() {
         watchdog = Task {
-            try? await Task.sleep(nanoseconds: 8_000_000_000)
+            try? await Task.sleep(nanoseconds: 7_000_000_000)
             if !Task.isCancelled, !loaded {
                 await MainActor.run { unrecoverable = true }
             }
@@ -73,7 +71,7 @@ struct PlayerSheet: View {
                 Text("This one needs YouTube")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.white)
-                Text("The publisher has restricted in-app playback for this video. Watch it on YouTube and come back when you're done.")
+                Text("The publisher has restricted in-app playback for this video. Watch on YouTube and come back.")
                     .font(.footnote)
                     .foregroundStyle(.white.opacity(0.65))
                     .multilineTextAlignment(.center)
@@ -93,23 +91,10 @@ struct PlayerSheet: View {
             .buttonStyle(.glass)
             .tint(.white)
         }
-        .padding(.bottom, 80)
-    }
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button { dismiss() } label: { Image(systemName: "xmark") }
-        }
-        ToolbarItem(placement: .topBarTrailing) {
-            ShareLink(item: item.watchURL) {
-                Image(systemName: "square.and.arrow.up")
-            }
-        }
     }
 }
 
-// MARK: - Nav-bar title block (matchup + competition)
+// MARK: - Nav title block
 
 private struct NavTitleBlock: View {
     let item: VideoItem
@@ -134,8 +119,7 @@ private struct NavTitleBlock: View {
 
     private var sportIcon: String {
         switch item.sport.lowercased() {
-        case let s where s.contains("rugby league"): return "shield.fill"
-        case let s where s.contains("rugby union"): return "shield.fill"
+        case let s where s.contains("rugby"): return "shield.fill"
         case let s where s.contains("rules"): return "sportscourt.fill"
         case let s where s.contains("football"): return "soccerball"
         case let s where s.contains("cricket"): return "baseball.fill"
@@ -159,14 +143,15 @@ private struct NavTitleBlock: View {
     }
 }
 
-// MARK: - Mobile YouTube WebView
+// MARK: - Custom-HTML iframe player
 
-/// Loads `m.youtube.com/watch?v=<id>` directly inside a WKWebView. Many publisher
-/// "embed disabled" restrictions only apply to iframe embeds, not the full mobile site.
-/// We inject CSS to hide YouTube's navigation chrome / suggested videos so the user
-/// mostly sees just the player.
-struct MobileYouTubeWebView: UIViewRepresentable {
+/// Hosts a hand-built HTML page that contains a YouTube iframe sized to fill the
+/// WKWebView. Uses the YouTube IFrame Player API for state + error events. When
+/// SponsorBlock skip ranges are supplied, JS monitors the player's current time
+/// and seeks past any matching segment automatically.
+struct IFramePlayerView: UIViewRepresentable {
     let videoId: String
+    let skipRanges: [[Double]]
     let onLoaded: () -> Void
     let onUnplayable: () -> Void
 
@@ -178,192 +163,111 @@ struct MobileYouTubeWebView: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-        config.defaultWebpagePreferences.preferredContentMode = .mobile
-
-        // Inject CSS that strips YouTube's chrome AND locks the page in a non-scrollable
-        // state so it stays fixed on the player.
-        let css = """
-        ytm-mobile-topbar-renderer,
-        ytm-pivot-bar-renderer,
-        ytm-search-bar,
-        ytm-app-header-renderer,
-        ytm-engagement-panel,
-        ytm-watch-metadata,
-        ytm-channel-bar-renderer,
-        ytm-item-section-renderer,
-        ytm-video-with-context-renderer,
-        ytm-shorts-shelf-renderer,
-        ytm-rich-shelf-renderer,
-        ytm-section-list-renderer,
-        ytm-feed-filter-chip-bar-renderer,
-        ytm-companion-slot,
-        ytm-watch-below-the-player-area,
-        .floating-button-wrap-bottom,
-        .mobile-topbar-header-content,
-        .item-section,
-        .single-column-watch-next-modern-panels,
-        ytm-modal-with-title-and-button-renderer,
-        ytm-comments-entry-point-header-renderer,
-        ytm-related-video-list-renderer,
-        ytm-rich-section-renderer,
-        ytm-info-panel-content-renderer,
-        #masthead-container,
-        #related,
-        #scroll-container,
-        ytm-button-renderer[button-renderer][role=button] { display:none !important; }
-
-        html, body {
-          background:#000 !important;
-          margin:0 !important; padding:0 !important;
-          overflow:hidden !important;
-          height:100% !important; width:100% !important;
-          position:fixed !important;
-          touch-action: none !important;
-          -webkit-user-select: none !important;
-        }
-        ytd-player, ytm-player, .player-container, #player {
-          background:#000 !important;
-          position:fixed !important; inset:0 !important;
-        }
-        """
-        let cssScript = WKUserScript(
-            source: "var s=document.createElement('style');s.textContent=`\(css)`;document.documentElement.appendChild(s);",
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: false
-        )
-
         let userContent = WKUserContentController()
-        userContent.addUserScript(cssScript)
         userContent.add(context.coordinator, name: "playerEvent")
-
-        // JS that polls the DOM for YouTube error containers and reports back if the
-        // video can't be played.
-        let errorWatchScript = WKUserScript(
-            source: errorWatchJS,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-        userContent.addUserScript(errorWatchScript)
-
         config.userContentController = userContent
-
         let webView = WKWebView(frame: .zero, configuration: config)
+        webView.scrollView.isScrollEnabled = false
+        webView.scrollView.bounces = false
         webView.isOpaque = false
         webView.backgroundColor = .black
-        webView.scrollView.isScrollEnabled = false
         webView.scrollView.backgroundColor = .black
-        webView.scrollView.bounces = false
-        webView.scrollView.bouncesZoom = false
-        webView.scrollView.maximumZoomScale = 1.0
-        webView.scrollView.minimumZoomScale = 1.0
-        webView.scrollView.pinchGestureRecognizer?.isEnabled = false
-        webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 26_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.0 Mobile/15E148 Safari/604.1"
         webView.navigationDelegate = context.coordinator
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        let url = URL(string: "https://m.youtube.com/watch?v=\(videoId)")!
-        webView.load(URLRequest(url: url))
+        let rangesJSON = (try? String(data: JSONSerialization.data(withJSONObject: skipRanges), encoding: .utf8)) ?? "[]"
+        webView.loadHTMLString(html(rangesJSON: rangesJSON), baseURL: URL(string: "https://www.youtube.com"))
     }
 
-    private var errorWatchJS: String {
+    private func html(rangesJSON: String) -> String {
         """
-        (function() {
-          let reportedReady = false;
-          let attemptedPlay = false;
-          let unmutedOnTap = false;
-
-          // Force the YouTube player container to fill the viewport. YouTube's mobile
-          // layout otherwise sizes the player to a 16:9 slice in the middle of the page.
-          function fitPlayer() {
-            const candidates = [
-              '#movie_player',
-              'ytm-player',
-              '.html5-video-player',
-              '.player-container',
-              'ytm-watch-flexy-player-container',
-              'ytm-watch-flexy'
-            ];
-            for (const sel of candidates) {
-              const el = document.querySelector(sel);
-              if (el) {
-                el.style.setProperty('position', 'fixed', 'important');
-                el.style.setProperty('top', '0', 'important');
-                el.style.setProperty('left', '0', 'important');
-                el.style.setProperty('right', '0', 'important');
-                el.style.setProperty('bottom', '0', 'important');
-                el.style.setProperty('width', '100vw', 'important');
-                el.style.setProperty('height', '100vh', 'important');
-                el.style.setProperty('max-width', 'none', 'important');
-                el.style.setProperty('max-height', 'none', 'important');
-                el.style.setProperty('z-index', '99999', 'important');
-                el.style.setProperty('background', '#000', 'important');
-              }
+        <!DOCTYPE html>
+        <html><head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+          <style>
+            html, body {
+              margin: 0; padding: 0;
+              background: #000;
+              width: 100vw; height: 100vh;
+              overflow: hidden;
+              touch-action: manipulation;
             }
-            // The video element itself: fill its container.
-            const v = document.querySelector('video');
-            if (v) {
-              v.style.setProperty('width', '100vw', 'important');
-              v.style.setProperty('height', '100vh', 'important');
-              v.style.setProperty('object-fit', 'contain', 'important');
-              v.style.setProperty('background', '#000', 'important');
+            #player-wrap {
+              position: absolute; inset: 0;
+              display: flex; align-items: center; justify-content: center;
             }
-          }
+            #player {
+              width: 100vw; height: 100vh;
+              border: 0; background: #000;
+            }
+          </style>
+        </head>
+        <body>
+          <div id="player-wrap"><div id="player"></div></div>
+          <script>
+            const SKIP_RANGES = \(rangesJSON);
+            let player;
+            let monitor;
 
-          function tryPlay() {
-            if (attemptedPlay) return;
-            const video = document.querySelector('video');
-            if (!video) return;
-            attemptedPlay = true;
-            const p = video.play();
-            if (p && p.catch) {
-              p.catch(() => {
-                const btn = document.querySelector('.ytp-large-play-button, .ytm-play-button, button[aria-label*="Play" i], .ytp-play-button');
-                if (btn) btn.click();
+            function post(payload) {
+              try { window.webkit.messageHandlers.playerEvent.postMessage(payload); } catch (e) {}
+            }
+
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.head.appendChild(tag);
+
+            function onYouTubeIframeAPIReady() {
+              player = new YT.Player('player', {
+                width: '100%',
+                height: '100%',
+                videoId: '\(videoId)',
+                playerVars: {
+                  autoplay: 1,
+                  playsinline: 1,
+                  rel: 0,
+                  modestbranding: 1,
+                  iv_load_policy: 3,
+                  fs: 1,
+                  controls: 1
+                },
+                events: {
+                  onReady: function(e) {
+                    post({type:'ready'});
+                    // Try to play (autoplay isn't always honoured)
+                    try { e.target.playVideo(); } catch (err) {}
+                    // Start SponsorBlock monitor
+                    if (SKIP_RANGES.length > 0) {
+                      monitor = setInterval(() => {
+                        try {
+                          const t = e.target.getCurrentTime();
+                          for (const r of SKIP_RANGES) {
+                            const [start, end] = r;
+                            if (t >= start && t < end - 0.2) {
+                              e.target.seekTo(end, true);
+                              break;
+                            }
+                          }
+                        } catch (err) {}
+                      }, 250);
+                    }
+                  },
+                  onError: function(e) {
+                    // 2 = invalid parameter; 5 = HTML5 player error;
+                    // 100 = video not found; 101 = embed disabled; 150 = embed disabled (alt).
+                    if (e.data === 100 || e.data === 101 || e.data === 150) {
+                      post({type: 'unplayable', code: e.data});
+                    } else {
+                      post({type: 'error', code: e.data});
+                    }
+                  }
+                }
               });
             }
-          }
-
-          // On the first user tap anywhere in the page, unmute.
-          document.addEventListener('click', function() {
-            if (unmutedOnTap) return;
-            const v = document.querySelector('video');
-            if (v) { v.muted = false; unmutedOnTap = true; }
-          }, true);
-
-          function check() {
-            const errSelectors = [
-              '.ytp-error', '.ytm-player-error', '.player-unavailable',
-              'ytm-player-error-message-renderer', 'ytm-alert-renderer'
-            ];
-            for (const sel of errSelectors) {
-              const el = document.querySelector(sel);
-              if (el && el.offsetParent !== null) {
-                const txt = (el.textContent || '').toLowerCase();
-                if (txt.includes('unavailable') || txt.includes("can't play") || txt.includes("error")) {
-                  if (window.webkit && window.webkit.messageHandlers.playerEvent) {
-                    window.webkit.messageHandlers.playerEvent.postMessage({type: 'error'});
-                  }
-                  return;
-                }
-              }
-            }
-            fitPlayer();
-            const video = document.querySelector('video');
-            if (video) {
-              if (!reportedReady) {
-                reportedReady = true;
-                if (window.webkit && window.webkit.messageHandlers.playerEvent) {
-                  window.webkit.messageHandlers.playerEvent.postMessage({type: 'ready'});
-                }
-              }
-              tryPlay();
-            }
-          }
-          setInterval(check, 400);
-          setTimeout(check, 100);
-        })();
+          </script>
+        </body></html>
         """
     }
 
@@ -385,7 +289,7 @@ struct MobileYouTubeWebView: UIViewRepresentable {
                     loadedReported = true
                     onLoaded()
                 }
-            case "error":
+            case "unplayable":
                 onUnplayable()
             default:
                 break
@@ -394,7 +298,8 @@ struct MobileYouTubeWebView: UIViewRepresentable {
     }
 }
 
-/// Loading view in the app's Liquid Glass theme.
+// MARK: - Liquid Glass loader
+
 struct LiquidGlassLoader: View {
     let title: String
     @State private var rotate = false
@@ -421,7 +326,6 @@ struct LiquidGlassLoader: View {
                     .font(.title2)
                     .foregroundStyle(.white.opacity(0.9))
             }
-
             VStack(spacing: 4) {
                 Text("Loading highlights")
                     .font(.subheadline.weight(.semibold))
