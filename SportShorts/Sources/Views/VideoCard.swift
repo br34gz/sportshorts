@@ -11,13 +11,15 @@ struct VideoCard: View {
                     AsyncImage(url: item.thumbnailURL) { phase in
                         switch phase {
                         case .success(let img):
-                            img.resizable().aspectRatio(16/9, contentMode: .fill)
+                            // Preserve the thumbnail's native aspect ratio. YouTube
+                            // serves both 16:9 (mqdefault.jpg) and 4:3 (hqdefault.jpg);
+                            // forcing 16:9 was stretching the 4:3 ones.
+                            img.resizable().scaledToFit()
                         default:
                             Rectangle().fill(.tertiary).aspectRatio(16/9, contentMode: .fit)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .clipped()
 
                     // Sport icon — top-left, mirrors where the YouTube watermark sits top-right.
                     HStack(spacing: 6) {

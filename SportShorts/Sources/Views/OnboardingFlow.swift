@@ -174,43 +174,36 @@ private struct SportRow: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Button(action: toggleExpanded) {
+            Button(action: rowTap) {
                 HStack(spacing: 14) {
                     Image(systemName: sport.icon).font(.title3).foregroundStyle(.tint).frame(width: 28)
                     Text(sport.label).font(.headline).foregroundStyle(.primary)
                     Spacer()
-                    let pickedCount = sport.competitions.filter { picked.contains($0.id) }.count
-                    if pickedCount > 0 {
-                        Text("\(pickedCount)").font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8).padding(.vertical, 3)
-                            .background(Capsule().fill(Color.accentColor.opacity(0.25)))
-                            .foregroundStyle(.tint)
+                    if isSingleCompetition {
+                        // Just a checkmark, no chevron.
+                        Image(systemName: picked.contains(sport.competitions[0].id) ? "checkmark.circle.fill" : "circle")
+                            .font(.title3)
+                            .foregroundStyle(picked.contains(sport.competitions[0].id) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                    } else {
+                        let pickedCount = sport.competitions.filter { picked.contains($0.id) }.count
+                        if pickedCount > 0 {
+                            Text("\(pickedCount)").font(.caption.weight(.semibold))
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(Capsule().fill(Color.accentColor.opacity(0.25)))
+                                .foregroundStyle(.tint)
+                        }
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                            .rotationEffect(.degrees(expanded ? 180 : 0))
+                            .foregroundStyle(.secondary)
                     }
-                    Image(systemName: "chevron.down")
-                        .font(.caption)
-                        .rotationEffect(.degrees(expanded ? 180 : 0))
-                        .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 18).padding(.vertical, 14)
             }
             .buttonStyle(.plain)
 
-            if expanded {
-                VStack(spacing: 8) {
-                    ForEach(sport.competitions) { comp in
-                        Button { toggleCompetition(comp.id) } label: {
-                            HStack {
-                                Text(comp.label).font(.subheadline).foregroundStyle(.primary)
-                                Spacer()
-                                Image(systemName: picked.contains(comp.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(picked.contains(comp.id) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                            }
-                            .padding(.horizontal, 18).padding(.vertical, 10)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.bottom, 8)
+            if expanded && !isSingleCompetition {
+                expandedBody
             }
         }
         .background {
@@ -222,5 +215,60 @@ private struct SportRow: View {
                 }
         }
         .animation(.easeInOut(duration: 0.18), value: expanded)
+    }
+
+    private var isSingleCompetition: Bool { sport.competitions.count == 1 }
+
+    private func rowTap() {
+        if isSingleCompetition {
+            // Single-comp sports: toggle the one competition directly.
+            toggleCompetition(sport.competitions[0].id)
+        } else {
+            toggleExpanded()
+        }
+    }
+
+    /// Groups competitions by their `group` field while preserving the input
+    /// order. Competitions without a group fall under "Other".
+    private var groupedCompetitions: [(group: String?, items: [Competition])] {
+        var out: [(String?, [Competition])] = []
+        for c in sport.competitions {
+            if let last = out.last, last.0 == c.group {
+                out[out.count - 1].1.append(c)
+            } else {
+                out.append((c.group, [c]))
+            }
+        }
+        return out
+    }
+
+    @ViewBuilder
+    private var expandedBody: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            let groups = groupedCompetitions
+            let anyGrouped = groups.contains(where: { $0.group != nil })
+            ForEach(Array(groups.enumerated()), id: \.offset) { _, section in
+                if anyGrouped, let group = section.group {
+                    Text(group)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 18)
+                        .padding(.top, 8)
+                }
+                ForEach(section.items) { comp in
+                    Button { toggleCompetition(comp.id) } label: {
+                        HStack {
+                            Text(comp.label).font(.subheadline).foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: picked.contains(comp.id) ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(picked.contains(comp.id) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                        }
+                        .padding(.horizontal, 18).padding(.vertical, 10)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.bottom, 8)
     }
 }

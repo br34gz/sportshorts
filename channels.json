@@ -8,6 +8,7 @@
         {
           "id": "epl",
           "label": "Premier League",
+          "group": "England",
           "global_channels": [
             {"channel_id": "UCG5qGWdu8nIRZqJ_GgDwQ-w", "handle": "@PremierLeague", "note": "Official Premier League channel."}
           ],
@@ -18,8 +19,27 @@
           }
         },
         {
+          "id": "fac",
+          "label": "FA Cup",
+          "group": "England",
+          "global_channels": [
+            {"channel_id": "UCChcWqwYXCEs657MQ00qVWA", "handle": "@EmiratesFACup", "note": "Official Emirates FA Cup channel — round-by-round highlights."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "efl",
+          "label": "League Cup",
+          "group": "England",
+          "global_channels": [
+            {"channel_id": "UCCmo_NIuQR5eU4AvBa6sEQQ", "handle": "@theEFL", "note": "Official EFL channel — covers Championship, League One/Two, and Carabao Cup."}
+          ],
+          "country_channels": {}
+        },
+        {
           "id": "laliga",
           "label": "La Liga",
+          "group": "Spain",
           "global_channels": [
             {"channel_id": "UCTv-XvfzLX3i4IGWAm4sbmA", "handle": "@LaLiga", "note": "Official LaLiga EA SPORTS channel — daily match highlights during season."}
           ],
@@ -28,6 +48,7 @@
         {
           "id": "bundesliga",
           "label": "Bundesliga",
+          "group": "Germany",
           "global_channels": [
             {"channel_id": "UC6UL29enLNe4mqwTfAyeNuw", "handle": "@Bundesliga", "note": "Official Bundesliga channel — per-matchday recaps and full highlights."}
           ],
@@ -36,6 +57,7 @@
         {
           "id": "ligue1",
           "label": "Ligue 1",
+          "group": "France",
           "global_channels": [
             {"channel_id": "UCQsH5XtIc9hONE1BQjucM0g", "handle": "@Ligue1official", "note": "Official Ligue 1 McDonald's channel — match highlights during season."}
           ],
@@ -44,30 +66,16 @@
         {
           "id": "seriea",
           "label": "Serie A",
+          "group": "Italy",
           "global_channels": [
             {"channel_id": "UCBJeMCIeLQos7wacox4hmLQ", "handle": "@SerieA", "note": "Official Lega Serie A channel — daily match highlights and per-club recaps."}
           ],
           "country_channels": {}
         },
         {
-          "id": "fac",
-          "label": "FA Cup",
-          "global_channels": [
-            {"channel_id": "UCChcWqwYXCEs657MQ00qVWA", "handle": "@EmiratesFACup", "note": "Official Emirates FA Cup channel — round-by-round highlights."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "efl",
-          "label": "League Cup (Carabao Cup)",
-          "global_channels": [
-            {"channel_id": "UCCmo_NIuQR5eU4AvBa6sEQQ", "handle": "@theEFL", "note": "Official EFL channel — covers Championship, League One/Two, and Carabao Cup."}
-          ],
-          "country_channels": {}
-        },
-        {
           "id": "ucl",
           "label": "Champions League",
+          "group": "International / UEFA",
           "global_channels": [
             {"channel_id": "UCyGa1YEx9ST66rYrJTGIKOw", "handle": "@UEFAtv", "note": "Official UEFA channel — UCL goal compilations and per-team highlight reels."}
           ],
@@ -79,6 +87,7 @@
         {
           "id": "uel",
           "label": "Europa League",
+          "group": "International / UEFA",
           "global_channels": [
             {"channel_id": "UCyGa1YEx9ST66rYrJTGIKOw", "handle": "@UEFAtv", "note": "UEFA channel — same as UCL; no standalone active UEL channel since 2020."}
           ],
@@ -90,6 +99,7 @@
         {
           "id": "fifa_wc",
           "label": "FIFA World Cup",
+          "group": "International / UEFA",
           "global_channels": [],
           "country_channels": {
             "AU": [{"channel_id": "UCn6UMS98Ox-B3jkSWlweJ2w", "playlist_id": "PLNuJDkj3zBvPVhoKC6Oq8j4w7AH9l-ejG", "handle": "@SBSSport", "note": "SBS Sport — AU rights-holder, FIFA World Cup 2026™ Match Highlights playlist."}]

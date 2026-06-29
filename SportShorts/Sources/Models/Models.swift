@@ -53,6 +53,7 @@ struct Channel: Identifiable, Hashable, Codable {
 struct Competition: Identifiable, Hashable, Codable {
     let id: String                              // "epl", "ucl"
     let label: String                           // "Premier League"
+    let group: String?                          // optional sub-grouping inside a sport, e.g. "England"
     let globalChannels: [Channel]
     let countryChannels: [String: [Channel]]    // "AU" -> [Channel...]
 
@@ -67,7 +68,7 @@ struct Competition: Identifiable, Hashable, Codable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, label
+        case id, label, group
         case globalChannels = "global_channels"
         case countryChannels = "country_channels"
     }
