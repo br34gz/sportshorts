@@ -19,31 +19,25 @@ struct SettingsView: View {
                     }
                 }
 
-                Section {
-                    let entries = (session.catalog[session.country?.code ?? ""] ?? [])
-                        .reduce(into: [(sport: String, competition: String)]()) { acc, e in
-                            if !acc.contains(where: { $0.competition == e.competition }) {
-                                acc.append((e.sport, e.competition))
+                ForEach(session.catalog.sports) { sport in
+                    Section {
+                        ForEach(sport.competitions) { comp in
+                            Toggle(isOn: Binding(
+                                get: { session.followedCompetitionIds.contains(comp.id) },
+                                set: { isOn in
+                                    if isOn { session.followedCompetitionIds.insert(comp.id) }
+                                    else { session.followedCompetitionIds.remove(comp.id) }
+                                }
+                            )) {
+                                Text(comp.label)
                             }
                         }
-                    ForEach(entries, id: \.competition) { e in
-                        Toggle(isOn: Binding(
-                            get: { session.followedCompetitions.contains(e.competition) },
-                            set: { isOn in
-                                if isOn { session.followedCompetitions.insert(e.competition) }
-                                else { session.followedCompetitions.remove(e.competition) }
-                            }
-                        )) {
-                            VStack(alignment: .leading) {
-                                Text(e.competition).font(.body)
-                                Text(e.sport).font(.caption).foregroundStyle(.secondary)
-                            }
+                    } header: {
+                        HStack(spacing: 6) {
+                            Image(systemName: sport.icon)
+                            Text(sport.label)
                         }
                     }
-                } header: {
-                    Text("Sports & competitions")
-                } footer: {
-                    Text("Channels are curated per country. Pull to refresh on Today to fetch latest highlights.")
                 }
 
                 Section("About") {

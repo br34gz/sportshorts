@@ -1,20 +1,16 @@
 import Foundation
 
-/// Loads the channel catalog from (in priority order):
+/// Loads the sport-centric channel catalog from (in priority order):
 /// 1. Remote: raw.githubusercontent.com/sb86-dev/sportshorts/main/channels.json
-/// 2. Local on-disk cache (Library/Caches/SportShorts/channels.json), if remote fetch fails or for fast first paint
-/// 3. Bundled fallback shipped with the app
+///    (Only works if the repo is public; private repos 404 anonymous fetches.)
+/// 2. Local on-disk cache (~24h TTL).
+/// 3. Bundled fallback shipped with the app.
 enum ChannelCatalog {
 
     static let remoteURL = URL(string: "https://raw.githubusercontent.com/sb86-dev/sportshorts/main/channels.json")!
+    static let cacheTTL: TimeInterval = 60 * 60 * 24
 
-    static let cacheTTL: TimeInterval = 60 * 60 * 24    // 24h
-
-    static func load(forceRefresh: Bool = false) async -> ChannelCatalogPayload {
-        // Try cache-first paint for snappy launch — but only if the cached
-        // payload is non-empty. An empty cache (e.g. from an earlier build
-        // that shipped before channels.json was populated) must not satisfy
-        // the cache check, otherwise we'd serve nothing until TTL expires.
+    static func load(forceRefresh: Bool = false) async -> Catalog {
         if !forceRefresh,
            let cached = loadFromCache(),
            !isEmpty(cached),
@@ -22,36 +18,28 @@ enum ChannelCatalog {
            Date().timeIntervalSince(mtime) < cacheTTL {
             return cached
         }
-
-        // Try remote.
         if let remote = await fetchRemote() {
             saveToCache(remote)
             return remote
         }
-
-        // Stale-but-non-empty cache better than nothing.
         if let cached = loadFromCache(), !isEmpty(cached) {
             return cached
         }
-
-        // Bundle fallback.
-        return loadFromBundle() ?? [:]
+        return loadFromBundle() ?? Catalog(sports: [])
     }
 
-    /// A catalog is "empty" if every country's channel list is empty.
-    private static func isEmpty(_ payload: ChannelCatalogPayload) -> Bool {
-        payload.values.allSatisfy { $0.isEmpty }
+    private static func isEmpty(_ catalog: Catalog) -> Bool {
+        catalog.sports.allSatisfy { $0.competitions.isEmpty }
     }
 
-    private static func fetchRemote() async -> ChannelCatalogPayload? {
+    private static func fetchRemote() async -> Catalog? {
         do {
             var req = URLRequest(url: remoteURL)
             req.cachePolicy = .reloadIgnoringLocalCacheData
             req.timeoutInterval = 8
             let (data, response) = try await URLSession.shared.data(for: req)
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else { return nil }
-            let decoded = try JSONDecoder().decode(ChannelCatalogPayload.self, from: data)
-            return decoded
+            return try JSONDecoder().decode(Catalog.self, from: data)
         } catch {
             return nil
         }
@@ -61,12 +49,12 @@ enum ChannelCatalog {
         let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
             .appendingPathComponent("SportShorts", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("channels.json")
+        return dir.appendingPathComponent("catalog.json")
     }
 
-    private static func loadFromCache() -> ChannelCatalogPayload? {
+    private static func loadFromCache() -> Catalog? {
         guard let data = try? Data(contentsOf: cacheURL) else { return nil }
-        return try? JSONDecoder().decode(ChannelCatalogPayload.self, from: data)
+        return try? JSONDecoder().decode(Catalog.self, from: data)
     }
 
     private static func cacheMtime() -> Date? {
@@ -74,17 +62,17 @@ enum ChannelCatalog {
         return attrs?[.modificationDate] as? Date
     }
 
-    private static func saveToCache(_ payload: ChannelCatalogPayload) {
-        if let data = try? JSONEncoder().encode(payload) {
+    private static func saveToCache(_ catalog: Catalog) {
+        if let data = try? JSONEncoder().encode(catalog) {
             try? data.write(to: cacheURL, options: .atomic)
         }
     }
 
-    private static func loadFromBundle() -> ChannelCatalogPayload? {
+    private static func loadFromBundle() -> Catalog? {
         guard let url = Bundle.main.url(forResource: "bundled_channels", withExtension: "json"),
               let data = try? Data(contentsOf: url) else {
             return nil
         }
-        return try? JSONDecoder().decode(ChannelCatalogPayload.self, from: data)
+        return try? JSONDecoder().decode(Catalog.self, from: data)
     }
 }

@@ -1,11 +1,9 @@
 import Foundation
 
-/// Parses YouTube's Atom feed (https://www.youtube.com/feeds/videos.xml?channel_id=...)
-/// into [VideoItem]. Tagged with the originating ChannelEntry's sport / competition.
 enum RSSParser {
 
-    static func parse(_ data: Data, for channel: ChannelEntry) throws -> [VideoItem] {
-        let delegate = FeedDelegate(channel: channel)
+    static func parse(_ data: Data, sport: Sport, competition: Competition, channel: Channel) throws -> [VideoItem] {
+        let delegate = FeedDelegate(sport: sport, competition: competition, channel: channel)
         let parser = XMLParser(data: data)
         parser.delegate = delegate
         guard parser.parse() else {
@@ -16,7 +14,9 @@ enum RSSParser {
 
     private final class FeedDelegate: NSObject, XMLParserDelegate {
         var items: [VideoItem] = []
-        let channel: ChannelEntry
+        let sport: Sport
+        let competition: Competition
+        let channel: Channel
 
         private var currentElement = ""
         private var currentText = ""
@@ -33,7 +33,9 @@ enum RSSParser {
             return f
         }()
 
-        init(channel: ChannelEntry) {
+        init(sport: Sport, competition: Competition, channel: Channel) {
+            self.sport = sport
+            self.competition = competition
             self.channel = channel
         }
 
@@ -46,9 +48,6 @@ enum RSSParser {
             }
             if inEntry, elementName == "media:thumbnail", let urlStr = attributeDict["url"] {
                 entryThumbnail = URL(string: urlStr)
-            }
-            if inEntry, elementName == "yt:videoId" {
-                // captured via characters
             }
         }
 
@@ -63,19 +62,21 @@ enum RSSParser {
                 case "yt:videoId": entryId = text
                 case "title": entryTitle = text
                 case "name": entryAuthor = text
-                case "published":
-                    entryPublished = FeedDelegate.iso8601.date(from: text)
+                case "published": entryPublished = FeedDelegate.iso8601.date(from: text)
                 case "entry":
                     if let id = entryId, let title = entryTitle, let published = entryPublished {
                         items.append(VideoItem(
                             id: id,
                             title: title,
-                            channelTitle: entryAuthor ?? channel.competition,
+                            channelTitle: entryAuthor ?? competition.label,
                             channelId: channel.channelId,
                             publishedAt: published,
                             thumbnailURL: entryThumbnail ?? URL(string: "https://i.ytimg.com/vi/\(id)/mqdefault.jpg"),
-                            competition: channel.competition,
-                            sport: channel.sport
+                            competitionId: competition.id,
+                            competitionLabel: competition.label,
+                            sportId: sport.id,
+                            sportLabel: sport.label,
+                            sportIcon: sport.icon
                         ))
                     }
                     inEntry = false

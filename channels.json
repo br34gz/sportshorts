@@ -1,330 +1,288 @@
 {
-  "AU": [
+  "sports": [
     {
-      "sport": "Rugby League",
-      "competition": "NRL",
-      "channel_id": "UC33-OkQ6VCYk8xtml8Pk4-g",
-      "handle": "@NRL",
-      "note": "Official NRL channel — extended match highlights, round recaps and try compilations within hours of each game."
+      "id": "soccer",
+      "label": "Soccer",
+      "icon": "soccerball",
+      "competitions": [
+        {
+          "id": "epl",
+          "label": "Premier League",
+          "global_channels": [
+            {"channel_id": "UCG5qGWdu8nIRZqJ_GgDwQ-w", "handle": "@PremierLeague", "note": "Official Premier League channel."}
+          ],
+          "country_channels": {
+            "UK": [{"channel_id": "UCZ7wY7MRDSygp63HIEfdQZA", "handle": "@skysportsfootball", "note": "Sky Sports Football — UK PL rights-holder."}],
+            "US": [{"channel_id": "UCqZQlzSHbVJrwrn5XvzrzcA", "handle": "@NBCSports", "note": "NBC Sports — US PL rights-holder; posts PL highlights in season."}],
+            "AU": [{"channel_id": "UC0jPwNs4B7yJySNewHan5hQ", "handle": "@StanSportFootball", "note": "Stan Sport Football — AU PL rights-holder; clip-form content."}]
+          }
+        },
+        {
+          "id": "laliga",
+          "label": "La Liga",
+          "global_channels": [
+            {"channel_id": "UCTv-XvfzLX3i4IGWAm4sbmA", "handle": "@LaLiga", "note": "Official LaLiga EA SPORTS channel — daily match highlights during season."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "bundesliga",
+          "label": "Bundesliga",
+          "global_channels": [
+            {"channel_id": "UC6UL29enLNe4mqwTfAyeNuw", "handle": "@Bundesliga", "note": "Official Bundesliga channel — per-matchday recaps and full highlights."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "ligue1",
+          "label": "Ligue 1",
+          "global_channels": [
+            {"channel_id": "UCQsH5XtIc9hONE1BQjucM0g", "handle": "@Ligue1official", "note": "Official Ligue 1 McDonald's channel — match highlights during season."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "seriea",
+          "label": "Serie A",
+          "global_channels": [
+            {"channel_id": "UCBJeMCIeLQos7wacox4hmLQ", "handle": "@SerieA", "note": "Official Lega Serie A channel — daily match highlights and per-club recaps."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "fac",
+          "label": "FA Cup",
+          "global_channels": [
+            {"channel_id": "UCChcWqwYXCEs657MQ00qVWA", "handle": "@EmiratesFACup", "note": "Official Emirates FA Cup channel — round-by-round highlights."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "efl",
+          "label": "League Cup (Carabao Cup)",
+          "global_channels": [
+            {"channel_id": "UCCmo_NIuQR5eU4AvBa6sEQQ", "handle": "@theEFL", "note": "Official EFL channel — covers Championship, League One/Two, and Carabao Cup."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "ucl",
+          "label": "Champions League",
+          "global_channels": [
+            {"channel_id": "UCyGa1YEx9ST66rYrJTGIKOw", "handle": "@UEFAtv", "note": "Official UEFA channel — UCL goal compilations and per-team highlight reels."}
+          ],
+          "country_channels": {
+            "UK": [{"channel_id": "UC4i_9WvfPRTuRWEaWyfKuFw", "handle": "@tntsportsfootball", "note": "TNT Sports — UK UCL rights-holder; clips and key moments."}],
+            "US": [{"channel_id": "UCET00YnetHT7tOpu12v8jxg", "handle": "@cbssportsgolazo", "note": "CBS Sports Golazo — US UCL rights-holder; extended highlights."}]
+          }
+        },
+        {
+          "id": "uel",
+          "label": "Europa League",
+          "global_channels": [
+            {"channel_id": "UCyGa1YEx9ST66rYrJTGIKOw", "handle": "@UEFAtv", "note": "UEFA channel — same as UCL; no standalone active UEL channel since 2020."}
+          ],
+          "country_channels": {
+            "UK": [{"channel_id": "UC4i_9WvfPRTuRWEaWyfKuFw", "handle": "@tntsportsfootball", "note": "TNT Sports — UK UEL rights-holder."}],
+            "US": [{"channel_id": "UCET00YnetHT7tOpu12v8jxg", "handle": "@cbssportsgolazo", "note": "CBS Sports Golazo — US UEL rights-holder."}]
+          }
+        },
+        {
+          "id": "fifa_wc",
+          "label": "FIFA World Cup",
+          "global_channels": [],
+          "country_channels": {
+            "AU": [{"channel_id": "UCn6UMS98Ox-B3jkSWlweJ2w", "playlist_id": "PLNuJDkj3zBvPVhoKC6Oq8j4w7AH9l-ejG", "handle": "@SBSSport", "note": "SBS Sport — AU rights-holder, FIFA World Cup 2026™ Match Highlights playlist."}]
+          }
+        }
+      ]
     },
     {
-      "sport": "Rugby League",
-      "competition": "NRL on Nine",
-      "channel_id": "UCBVrn_SGKAOv3yKPi4Oc3-A",
-      "handle": "@NRLonNine",
-      "note": "Nine Network's NRL channel — free-to-air rights-holder; additional highlights, post-match analysis and pressers."
+      "id": "nba",
+      "label": "NBA",
+      "icon": "basketball.fill",
+      "competitions": [
+        {
+          "id": "nba",
+          "label": "NBA",
+          "global_channels": [
+            {"channel_id": "UCWJ2lWNubArHWmf3FIHbfcQ", "handle": "@NBA", "note": "Official NBA channel — game recaps and top plays within hours of every game."}
+          ],
+          "country_channels": {}
+        }
+      ]
     },
     {
-      "sport": "Australian Rules",
-      "competition": "AFL",
-      "channel_id": "UCxAeHdLDAatFV_vt95MSO-g",
-      "handle": "@AFL",
-      "note": "Official AFL channel — full match highlights posted hours after games."
+      "id": "nfl",
+      "label": "NFL",
+      "icon": "football.fill",
+      "competitions": [
+        {
+          "id": "nfl",
+          "label": "NFL",
+          "global_channels": [
+            {"channel_id": "UCDVYQ4Zhbm3S2dlz7P1GBDg", "handle": "@NFL", "note": "Official NFL channel — every game recap and Top 100 series, same day."}
+          ],
+          "country_channels": {}
+        }
+      ]
     },
     {
-      "sport": "Football",
-      "competition": "A-Leagues",
-      "channel_id": "UCzRogd_oK3bzKvAW-4aLuPQ",
-      "handle": "@aleagues",
-      "note": "Official A-Leagues channel — match highlights, final-15 recaps and feature content for A-League Men & Women."
+      "id": "nbl",
+      "label": "NBL",
+      "icon": "basketball.fill",
+      "competitions": [
+        {
+          "id": "nbl",
+          "label": "NBL",
+          "global_channels": [
+            {"channel_id": "UCQOt5-Mc5m03JCO_W9SWySA", "handle": "@NBL", "note": "Official National Basketball League (Australia) channel — per-game highlights during NBL season."}
+          ],
+          "country_channels": {}
+        }
+      ]
     },
     {
-      "sport": "Rugby Union",
-      "competition": "Super Rugby Pacific",
-      "channel_id": "UCSekwYdIMQbjpUOEZIFz13g",
-      "handle": "@SuperRugbyPacific",
-      "note": "Official Super Rugby Pacific channel — match highlights, top tries and post-match content for all club games."
+      "id": "nhl",
+      "label": "NHL",
+      "icon": "hockey.puck.fill",
+      "competitions": [
+        {
+          "id": "nhl",
+          "label": "NHL",
+          "global_channels": [
+            {"channel_id": "UCqFMzb-4AUf6WAIbl132QKA", "handle": "@NHL", "note": "Official NHL channel — game recaps and top moments."}
+          ],
+          "country_channels": {}
+        }
+      ]
     },
     {
-      "sport": "Rugby Union",
-      "competition": "Wallabies",
-      "channel_id": "UC4Y6lpmGz2rkbOVdrOhjgvQ",
-      "handle": "@Wallabies_Rugby",
-      "note": "Official Wallabies channel — Test match highlights and pressers when Tests are played; quieter mid-season."
+      "id": "tennis",
+      "label": "Tennis",
+      "icon": "tennis.racket",
+      "competitions": [
+        {
+          "id": "ao",
+          "label": "Australian Open",
+          "global_channels": [
+            {"channel_id": "UCeTKJSW1NTAkf27nNmjWt5A", "handle": "@australianopen", "note": "Official AO channel — daily reels, full-match replays, and year-round content."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "wimbledon",
+          "label": "Wimbledon",
+          "global_channels": [
+            {"channel_id": "UCNa8NxMgSm7m4Ii9d4QGk1Q", "handle": "@Wimbledon", "note": "Official Wimbledon channel — daily highlights and full-match replays."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "us_open",
+          "label": "US Open",
+          "global_channels": [
+            {"channel_id": "UCXbboag48Qlr78zzz6SkzkQ", "handle": "@usopen", "note": "Official US Open Tennis channel — daily highlights during tournament."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "rg",
+          "label": "Roland-Garros",
+          "global_channels": [
+            {"channel_id": "UCYxYg9pHIMTIN1ZBKBYx_DA", "handle": "@rolandgarros", "note": "Official Roland-Garros channel — daily highlights during the French Open."}
+          ],
+          "country_channels": {}
+        }
+      ]
     },
     {
-      "sport": "Cricket",
-      "competition": "Cricket Australia",
-      "channel_id": "UCkBY0aHJP9BwjZLDYxAQrKg",
-      "handle": "@cricketcomau",
-      "note": "Cricket Australia's cricket.com.au channel — official highlights for men's and women's Australia international and domestic cricket."
+      "id": "cricket",
+      "label": "Cricket",
+      "icon": "figure.cricket",
+      "competitions": [
+        {
+          "id": "icc",
+          "label": "ICC Cricket (international)",
+          "global_channels": [
+            {"channel_id": "UCt2JXOLNxqry7B_4rRZME3Q", "handle": "@ICC", "note": "Official ICC channel — international cricket events highlights in multiple languages."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "england_cricket",
+          "label": "England Cricket",
+          "global_channels": [
+            {"channel_id": "UCz1D0n02BR3t51KuBOPmfTQ", "handle": "@officialenglandcricket", "note": "Official ECB channel — Test, T20I, ODI highlights for England men and women."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "cricket_au",
+          "label": "Australia Cricket",
+          "global_channels": [
+            {"channel_id": "UCkBY0aHJP9BwjZLDYxAQrKg", "handle": "@cricketcomau", "note": "Cricket Australia — men's and women's national teams and domestic content."}
+          ],
+          "country_channels": {}
+        },
+        {
+          "id": "nz_cricket",
+          "label": "New Zealand Cricket",
+          "global_channels": [
+            {"channel_id": "UCuKowzPg2-A0FcmyPa3yWug", "handle": "@NZCricket", "note": "Official NZ Cricket — Black Caps and White Ferns Test, ODI, T20I highlights."}
+          ],
+          "country_channels": {}
+        }
+      ]
     },
     {
-      "sport": "Cricket",
-      "competition": "BBL / WBBL",
-      "channel_id": "UCv5-1Ypl3Adf4uGaR_H0mlg",
-      "handle": "@BigBash",
-      "note": "Official BBL/WBBL channel — match highlights and big moments for both leagues."
+      "id": "f1",
+      "label": "F1",
+      "icon": "flag.checkered",
+      "competitions": [
+        {
+          "id": "f1",
+          "label": "Formula 1",
+          "global_channels": [
+            {"channel_id": "UCB_qr75-ydFVKSF9Dmo6izg", "handle": "@FORMULA1", "note": "Official Formula 1 channel — race, qualifying, sprint highlights within hours of each GP."}
+          ],
+          "country_channels": {
+            "UK": [{"channel_id": "UC3kxJQ9RfaS5CKeYbbFMi4Q", "handle": "@SkySportsF1", "note": "Sky Sports F1 — UK F1 rights-holder; race highlights and Ted's Notebook."}]
+          }
+        }
+      ]
     },
     {
-      "sport": "Tennis",
-      "competition": "Australian Open",
-      "channel_id": "UCeTKJSW1NTAkf27nNmjWt5A",
-      "handle": "@australianopen",
-      "note": "Official AO channel — daily highlight reels, full-match replays and interviews during the tournament; year-round content."
+      "id": "nrl",
+      "label": "NRL",
+      "icon": "shield.fill",
+      "competitions": [
+        {
+          "id": "nrl",
+          "label": "NRL",
+          "global_channels": [
+            {"channel_id": "UC33-OkQ6VCYk8xtml8Pk4-g", "handle": "@NRL", "note": "Official NRL channel — extended match highlights within hours of each game."}
+          ],
+          "country_channels": {
+            "AU": [{"channel_id": "UCBVrn_SGKAOv3yKPi4Oc3-A", "handle": "@NRLonNine", "note": "Nine Network's NRL channel — FTA rights-holder, supplementary highlights."}]
+          }
+        }
+      ]
     },
     {
-      "sport": "Tennis",
-      "competition": "ATP Tour",
-      "channel_id": "UCY_5h5zaSwN7Or4kIJDYNXA",
-      "handle": "@ATPTour",
-      "note": "Official ATP Tour channel — per-match highlights for ATP tournaments worldwide, posted same day."
-    },
-    {
-      "sport": "Tennis",
-      "competition": "WTA Tour",
-      "channel_id": "UCaBIVVpHjq6j3tSyxwTE-8Q",
-      "handle": "@WTA",
-      "note": "Official WTA channel — per-match highlights for women's tour events, posted same day."
-    },
-    {
-      "sport": "Tennis",
-      "competition": "Tennis TV (ATP/WTA)",
-      "channel_id": "UCbcxFkd6B9xUU54InHv4Tig",
-      "handle": "@tennistv",
-      "note": "ATP-affiliated subscription service; posts free same-day match highlights alongside its paid offering."
-    },
-    {
-      "sport": "Motorsport",
-      "competition": "Supercars",
-      "channel_id": "UCcCBrelNGfpchXKLFt8gtKg",
-      "handle": "@Supercars",
-      "note": "Official Supercars channel — race highlights, qualifying recaps and onboards within a day of each round."
-    },
-    {
-      "sport": "Football",
-      "competition": "Premier League",
-      "channel_id": "UCG5qGWdu8nIRZqJ_GgDwQ-w",
-      "handle": "@PremierLeague",
-      "note": "Official Premier League channel viewable to AU audiences. Stan Sport holds AU rights but paywalls full highlights; this channel is the cleanest free YouTube source."
-    },
-    {
-      "sport": "Football",
-      "competition": "Stan Sport Football (clips)",
-      "channel_id": "UC0jPwNs4B7yJySNewHan5hQ",
-      "handle": "@StanSportFootball",
-      "note": "Stan Sport — AU EPL rights-holder. Posts clip-form coverage and 'Added Time' content; full match highlights are paywalled."
-    },
-    {
-      "sport": "Football",
-      "competition": "FIFA World Cup",
-      "channel_id": "UCn6UMS98Ox-B3jkSWlweJ2w",
-      "playlist_id": "PLNuJDkj3zBvPVhoKC6Oq8j4w7AH9l-ejG",
-      "handle": "@SBSSport",
-      "note": "SBS Sport — AU rights-holder. Pull from the 'FIFA World Cup 2026™ Match Highlights' playlist specifically, since the channel root is flooded with non-match clips and bumps real highlights out of the RSS feed quickly."
-    }
-  ],
-  "UK": [
-    {
-      "sport": "Football",
-      "competition": "Premier League",
-      "channel_id": "UCG5qGWdu8nIRZqJ_GgDwQ-w",
-      "handle": "@PremierLeague",
-      "note": "Official Premier League channel — goal compilations, classic moments and feature content."
-    },
-    {
-      "sport": "Football",
-      "competition": "Sky Sports Football",
-      "channel_id": "UCZ7wY7MRDSygp63HIEfdQZA",
-      "handle": "@skysportsfootball",
-      "note": "UK PL rights-holder — highlights, key moments and interviews from PL, WSL, EFL and SPFL games."
-    },
-    {
-      "sport": "Football",
-      "competition": "FA Cup",
-      "channel_id": "UCChcWqwYXCEs657MQ00qVWA",
-      "handle": "@EmiratesFACup",
-      "note": "Official Emirates FA Cup channel — round-by-round highlights and key moments."
-    },
-    {
-      "sport": "Football",
-      "competition": "EFL",
-      "channel_id": "UCCmo_NIuQR5eU4AvBa6sEQQ",
-      "handle": "@theEFL",
-      "note": "Official EFL channel — play-off finals, marquee full-90 replays and match highlights across Championship, League One/Two and Carabao Cup."
-    },
-    {
-      "sport": "Football",
-      "competition": "Champions League",
-      "channel_id": "UCyGa1YEx9ST66rYrJTGIKOw",
-      "handle": "@UEFA",
-      "note": "Official UEFA channel — UCL goal compilations and per-team highlight reels. Per-match full highlights are paywalled at UEFA.tv / broadcasters."
-    },
-    {
-      "sport": "Football",
-      "competition": "TNT Sports Football",
-      "channel_id": "UC4i_9WvfPRTuRWEaWyfKuFw",
-      "handle": "@tntsportsfootball",
-      "note": "UK UCL rights-holder — clips, key moments and interviews from UCL/UEL games."
-    },
-    {
-      "sport": "Rugby Union",
-      "competition": "Six Nations",
-      "channel_id": "UCL5bAcVfbxSAs-UM5f5ncWg",
-      "handle": "@SixNationsRugby",
-      "note": "Official Guinness Men's Six Nations channel — full match highlights and Super Saturday recaps during the championship (Feb-Mar)."
-    },
-    {
-      "sport": "Tennis",
-      "competition": "Wimbledon",
-      "channel_id": "UCNa8NxMgSm7m4Ii9d4QGk1Q",
-      "handle": "@Wimbledon",
-      "note": "Official Wimbledon channel — daily highlights, full-match replays from past editions, player interviews."
-    },
-    {
-      "sport": "Cricket",
-      "competition": "England Cricket",
-      "channel_id": "UCz1D0n02BR3t51KuBOPmfTQ",
-      "handle": "@officialenglandcricket",
-      "note": "Official ECB channel — Test, T20I and ODI highlights for England men and women, plus Vitality Blast and county content."
-    },
-    {
-      "sport": "Cricket",
-      "competition": "The Hundred",
-      "channel_id": "UCPDAFa3eTpUhugfKPuvxPww",
-      "handle": "@thehundred",
-      "note": "Official The Hundred channel — match highlights, top moments and athlete content; also streams matches live during the tournament window."
-    },
-    {
-      "sport": "Motorsport",
-      "competition": "Formula 1",
-      "channel_id": "UCB_qr75-ydFVKSF9Dmo6izg",
-      "handle": "@FORMULA1",
-      "note": "Official Formula 1 channel — race highlights, qualifying, sprint and post-race driver reactions, posted within hours of each GP."
-    }
-  ],
-  "US": [
-    {
-      "sport": "Basketball",
-      "competition": "NBA",
-      "channel_id": "UCWJ2lWNubArHWmf3FIHbfcQ",
-      "handle": "@NBA",
-      "note": "Official NBA channel — full game recaps, top plays and player highlights uploaded within hours of every game."
-    },
-    {
-      "sport": "American Football",
-      "competition": "NFL",
-      "channel_id": "UCDVYQ4Zhbm3S2dlz7P1GBDg",
-      "handle": "@NFL",
-      "note": "Official NFL channel — every game recap, player highlights and Top 100 series; posts game highlights same day."
-    },
-    {
-      "sport": "Baseball",
-      "competition": "MLB",
-      "channel_id": "UCoLrcjPV5PbUrUyXq5mjc_A",
-      "handle": "@MLB",
-      "note": "Official MLB channel — full game highlights for every game posted same-night, plus walk-offs and player compilations."
-    },
-    {
-      "sport": "Ice Hockey",
-      "competition": "NHL",
-      "channel_id": "UCqFMzb-4AUf6WAIbl132QKA",
-      "handle": "@NHL",
-      "note": "Official NHL channel — game recaps, top moments and draft coverage."
-    },
-    {
-      "sport": "Football",
-      "competition": "MLS",
-      "channel_id": "UCSZbXT5TLLW_i-5W8FZpFsg",
-      "handle": "@MLS",
-      "note": "Official MLS channel — match highlights, MLS Cup content and feature stories. Some MLS Season Pass content is exclusive to Apple TV."
-    },
-    {
-      "sport": "American Football",
-      "competition": "NCAA Championships",
-      "channel_id": "UCYbbpwosQ0a2d3ygPpruJ1w",
-      "handle": "@NCAAChampionships",
-      "note": "Official NCAA channel — full replays of CWS, bowl games and tournament play; broadest cross-sport NCAA highlights source."
-    },
-    {
-      "sport": "American Football",
-      "competition": "ESPN College Football",
-      "channel_id": "UCzRWWsFjqHk1an4OnVPsl9g",
-      "handle": "@espncfb",
-      "note": "Broadcaster channel — posts CFB game highlights during the season (off-season skews to podcast/analysis content)."
-    },
-    {
-      "sport": "Basketball",
-      "competition": "March Madness",
-      "channel_id": "UCKjEtnnXEHsXE9IvCb92V7g",
-      "handle": "@marchmadness",
-      "note": "Official March Madness channel — tournament highlights and game recaps for men's and women's NCAA basketball tournaments."
-    },
-    {
-      "sport": "Tennis",
-      "competition": "US Open",
-      "channel_id": "UCXbboag48Qlr78zzz6SkzkQ",
-      "handle": "@usopen",
-      "note": "Official US Open Tennis channel — daily highlights, condensed/iconic replays and player interviews during the tournament."
-    }
-  ],
-  "IE": [
-    {
-      "sport": "Gaelic Games",
-      "competition": "GAA",
-      "channel_id": "UCCsDOY9UaBpPnv60mxX6dQA",
-      "handle": "@officialgaa",
-      "note": "Official GAA channel — bitesize match highlights for All-Ireland Senior Football and Hurling Championships posted within days of each round."
-    },
-    {
-      "sport": "Rugby Union",
-      "competition": "Six Nations",
-      "channel_id": "UCL5bAcVfbxSAs-UM5f5ncWg",
-      "handle": "@SixNationsRugby",
-      "note": "Official Guinness Men's Six Nations channel — covers Ireland matches during the championship."
-    },
-    {
-      "sport": "Football",
-      "competition": "Premier League",
-      "channel_id": "UCG5qGWdu8nIRZqJ_GgDwQ-w",
-      "handle": "@PremierLeague",
-      "note": "Official Premier League channel. IE rights are Sky/Premier Sports; no Ireland-specific YouTube rights-holder, so the official PL channel is the canonical free source."
-    }
-  ],
-  "NZ": [
-    {
-      "sport": "Rugby Union",
-      "competition": "All Blacks",
-      "channel_id": "UCsAPiUMyBjtKamxYGbSUnLA",
-      "handle": "@AllBlacks",
-      "note": "Official All Blacks channel — Test match highlights, Maori All Blacks, Junior World Champs and analysis."
-    },
-    {
-      "sport": "Rugby Union",
-      "competition": "Super Rugby Pacific",
-      "channel_id": "UCSekwYdIMQbjpUOEZIFz13g",
-      "handle": "@SuperRugbyPacific",
-      "note": "Official Super Rugby Pacific channel — covers the five NZ franchises (Blues, Chiefs, Hurricanes, Crusaders, Highlanders) plus the Aupiki women's comp."
-    },
-    {
-      "sport": "Rugby League",
-      "competition": "NRL (Warriors)",
-      "channel_id": "UC33-OkQ6VCYk8xtml8Pk4-g",
-      "handle": "@NRL",
-      "note": "Official NRL channel — covers NZ Warriors and all NRL matches."
-    },
-    {
-      "sport": "Cricket",
-      "competition": "NZ Cricket",
-      "channel_id": "UCuKowzPg2-A0FcmyPa3yWug",
-      "handle": "@NZCricket",
-      "note": "Official New Zealand Cricket channel — Test, ODI and T20I highlights for both Black Caps and White Ferns."
-    }
-  ],
-  "ZA": [
-    {
-      "sport": "Rugby Union",
-      "competition": "Springboks",
-      "channel_id": "UCVI5iqtQOsWZwtAg1o3SIAQ",
-      "handle": "@OfficialBokTube",
-      "note": "BOKTube — the official SA Rugby YouTube channel; Test match highlights, 'Journey to Greatness' series and pressers; active multiple times per week."
-    },
-    {
-      "sport": "Cricket",
-      "competition": "Proteas",
-      "channel_id": "UCzevPCfP7MtRqOB0ZkU5cwg",
-      "handle": "@OfficialCSA",
-      "note": "Cricket South Africa channel — pressers, training content, CSA Awards and feature pieces. Full match highlights are restricted by SuperSport broadcast rights and rarely appear on YouTube; best official option but inconsistent for match highlights specifically."
+      "id": "afl",
+      "label": "AFL",
+      "icon": "sportscourt.fill",
+      "competitions": [
+        {
+          "id": "afl",
+          "label": "AFL",
+          "global_channels": [
+            {"channel_id": "UCxAeHdLDAatFV_vt95MSO-g", "handle": "@AFL", "note": "Official AFL channel — full match highlights posted hours after games."}
+          ],
+          "country_channels": {}
+        }
+      ]
     }
   ]
 }

@@ -8,22 +8,19 @@ struct BrowseView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
-                    ForEach(groupedSports, id: \.competition) { section in
+                    ForEach(groupedSections, id: \.competition.id) { section in
                         VStack(alignment: .leading, spacing: 10) {
-                            HStack(alignment: .firstTextBaseline) {
-                                Text(section.competition)
-                                    .font(.title3.weight(.bold))
-                                Text(section.sport)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.secondary)
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Image(systemName: section.sport.icon).font(.caption.weight(.semibold)).foregroundStyle(.tint)
+                                Text(section.competition.label).font(.title3.weight(.bold))
+                                Text(section.sport.label).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 16)
 
-                            let items = session.feed.filter { $0.competition == section.competition }
+                            let items = session.feed.filter { $0.competitionId == section.competition.id }
                             if items.isEmpty {
-                                Text("No recent highlights for \(section.competition).")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                Text("No recent highlights for \(section.competition.label).")
+                                    .font(.subheadline).foregroundStyle(.secondary)
                                     .padding(.horizontal, 16)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
@@ -39,8 +36,7 @@ struct BrowseView: View {
                         }
                     }
                 }
-                .padding(.top, 8)
-                .padding(.bottom, 40)
+                .padding(.top, 8).padding(.bottom, 40)
             }
             .navigationTitle("Browse")
             .toolbarTitleDisplayMode(.inlineLarge)
@@ -48,16 +44,8 @@ struct BrowseView: View {
         }
     }
 
-    private var groupedSports: [(sport: String, competition: String)] {
-        var seen = Set<String>()
-        var out: [(String, String)] = []
-        for entry in session.activeChannels {
-            if !seen.contains(entry.competition) {
-                seen.insert(entry.competition)
-                out.append((entry.sport, entry.competition))
-            }
-        }
-        return out
+    private var groupedSections: [(sport: Sport, competition: Competition)] {
+        session.followedCompetitions
     }
 }
 

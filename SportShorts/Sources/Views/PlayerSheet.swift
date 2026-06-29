@@ -1,24 +1,15 @@
 import SwiftUI
 import WebKit
 
-// MARK: - Player sheet (rewritten clean from scratch in v1.3)
-//
-// The premise is deliberately small: a sheet with a navigation bar (matchup title,
-// X to dismiss, share button) and a WKWebView that loads the actual YouTube mobile
-// watch URL. No injected JavaScript. No content rule list. No SwiftUI overlays.
-// No tap-to-play prompts. The only thing the app does is open the URL — YouTube's
-// own page handles every other concern, exactly like Mobile Safari would.
-//
-// Once playback is confirmed working, SponsorBlock / ad-skip / etc can be layered
-// back in, isolated and tested individually.
-
 struct PlayerSheet: View {
     let item: VideoItem
     @Environment(\.dismiss) private var dismiss
+    @State private var skipRanges: [[Double]] = []
+    @State private var skipRangesLoaded = false
 
     var body: some View {
         NavigationStack {
-            PlainYouTubeWebView(videoId: item.id)
+            YouTubeBrowserView(videoId: item.id, skipRanges: skipRanges, skipRangesLoaded: skipRangesLoaded)
                 .ignoresSafeArea(edges: .bottom)
                 .toolbar {
                     ToolbarItem(placement: .principal) { NavTitleBlock(item: item) }
@@ -36,10 +27,12 @@ struct PlayerSheet: View {
                 .toolbarColorScheme(.dark, for: .navigationBar)
         }
         .preferredColorScheme(.dark)
+        .task {
+            skipRanges = await SponsorBlock.fetchSkipRanges(videoId: item.id)
+            skipRangesLoaded = true
+        }
     }
 }
-
-// MARK: - Nav title
 
 private struct NavTitleBlock: View {
     let item: VideoItem
@@ -51,32 +44,15 @@ private struct NavTitleBlock: View {
                 .foregroundStyle(.white)
                 .lineLimit(1)
             HStack(spacing: 5) {
-                Image(systemName: sportIcon)
+                Image(systemName: item.sportIcon)
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.75))
-                Text(item.competition)
+                Text(item.competitionLabel)
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.75))
             }
         }
         .frame(maxWidth: 240)
-    }
-
-    private var sportIcon: String {
-        switch item.sport.lowercased() {
-        case let s where s.contains("rugby"): return "shield.fill"
-        case let s where s.contains("rules"): return "sportscourt.fill"
-        case let s where s.contains("football"): return "soccerball"
-        case let s where s.contains("cricket"): return "baseball.fill"
-        case let s where s.contains("tennis"): return "tennis.racket"
-        case let s where s.contains("basketball"): return "basketball.fill"
-        case let s where s.contains("hockey"): return "hockey.puck.fill"
-        case let s where s.contains("baseball"): return "baseball.fill"
-        case let s where s.contains("motorsport"): return "flag.checkered.2.crossed"
-        case let s where s.contains("american"): return "football.fill"
-        case let s where s.contains("gaelic"): return "shield.fill"
-        default: return "sportscourt.fill"
-        }
     }
 
     private var matchupOrTitle: String {
@@ -88,23 +64,28 @@ private struct NavTitleBlock: View {
     }
 }
 
-// MARK: - Plain WKWebView
-
-/// Pure WKWebView wrapper — opens m.youtube.com/watch?v=… and gets out of the way.
-/// No JavaScript injection, no content blocker, no special UA, no scroll lock.
-/// This is the minimum viable surface to test whether WKWebView+YouTube plays at all.
-struct PlainYouTubeWebView: UIViewRepresentable {
+/// WKWebView loading m.youtube.com directly. SponsorBlock segments (when loaded)
+/// drive a passive currentTime → seek loop. Ad blocker is a content rule list.
+struct YouTubeBrowserView: UIViewRepresentable {
     let videoId: String
+    let skipRanges: [[Double]]
+    let skipRangesLoaded: Bool
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
 
+        let userContent = WKUserContentController()
+        config.userContentController = userContent
+
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = .black
         webView.scrollView.backgroundColor = .black
+
+        installAdBlocker(on: webView)
+
         return webView
     }
 
@@ -112,6 +93,56 @@ struct PlainYouTubeWebView: UIViewRepresentable {
         let url = URL(string: "https://m.youtube.com/watch?v=\(videoId)")!
         if webView.url != url {
             webView.load(URLRequest(url: url))
+        }
+        // SponsorBlock skip script: re-evaluate once skipRanges arrive (passive seek-only).
+        if skipRangesLoaded {
+            let rangesJSON = (try? String(data: JSONSerialization.data(withJSONObject: skipRanges), encoding: .utf8)) ?? "[]"
+            let js = """
+            (function() {
+              if (window.__sportshortsSponsorBlockInstalled) return;
+              window.__sportshortsSponsorBlockInstalled = true;
+              const SKIP_RANGES = \(rangesJSON);
+              if (!SKIP_RANGES.length) return;
+              setInterval(function() {
+                try {
+                  const v = document.querySelector('video');
+                  if (!v) return;
+                  const t = v.currentTime;
+                  for (const r of SKIP_RANGES) {
+                    const [start, end] = r;
+                    if (t >= start && t < end - 0.2) {
+                      v.currentTime = end;
+                      return;
+                    }
+                  }
+                } catch (e) {}
+              }, 300);
+            })();
+            """
+            webView.evaluateJavaScript(js)
+        }
+    }
+
+    /// Compile a small content rule list to block common ad-network endpoints.
+    private func installAdBlocker(on webView: WKWebView) {
+        let rules: [[String: Any]] = [
+            ["trigger": ["url-filter": #".*doubleclick\.net.*"#], "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*googleadservices\.com.*"#], "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*googlesyndication\.com.*"#], "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*adservice\.google\..*"#], "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*google-analytics\.com.*"#], "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*youtube\.com\/api\/stats\/ads.*"#], "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*youtube\.com\/pagead\/.*"#], "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*\/get_midroll_info.*"#], "action": ["type": "block"]],
+            ["trigger": ["url-filter": #".*\/ad_companion.*"#], "action": ["type": "block"]],
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: rules),
+              let json = String(data: data, encoding: .utf8) else { return }
+        WKContentRuleListStore.default()?.compileContentRuleList(
+            forIdentifier: "SportShortsAdBlock",
+            encodedContentRuleList: json
+        ) { list, _ in
+            if let list { webView.configuration.userContentController.add(list) }
         }
     }
 }

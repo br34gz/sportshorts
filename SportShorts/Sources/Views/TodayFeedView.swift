@@ -12,16 +12,14 @@ struct TodayFeedView: View {
                 } else if session.feed.isEmpty {
                     ContentUnavailableView(
                         "Nothing yet",
-                        systemImage: "sparkles",
+                        systemImage: "film.stack",
                         description: Text(session.lastFeedError ?? "Pull to refresh once you've got a network.")
                     )
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 14) {
                             ForEach(session.feed) { item in
-                                VideoCard(item: item) {
-                                    playing = item
-                                }
+                                VideoCard(item: item) { playing = item }
                             }
                         }
                         .padding(.horizontal, 16)
@@ -51,7 +49,7 @@ struct TodayFeedView: View {
         session.isLoadingFeed = true
         defer { session.isLoadingFeed = false }
         do {
-            session.feed = try await FeedFetcher.fetch(channels: session.activeChannels)
+            session.feed = try await FeedFetcher.fetch(queries: session.activeQueries)
             session.lastFeedError = nil
         } catch {
             session.lastFeedError = error.localizedDescription

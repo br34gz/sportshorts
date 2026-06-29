@@ -1,9 +1,9 @@
 import Foundation
 import SwiftUI
 
-/// App-wide observable session state: which country, which sports the user
-/// follows, loaded channel catalog, current feed. Held by SportShortsApp as
-/// an environment object.
+/// App-wide observable state: country, followed competitions, loaded catalog,
+/// current feed. The catalog is sport-centric; per-country channels are
+/// resolved at query time via Competition.effectiveChannels(for:).
 @Observable
 final class AppSession {
     var country: Country? {
@@ -12,38 +12,52 @@ final class AppSession {
         }
     }
 
-    /// Set of competition labels the user follows (e.g. ["NRL", "AFL", "EPL"]).
-    /// Stored as a comma-joined string under @AppStorage semantics via UserDefaults.
-    var followedCompetitions: Set<String> {
+    /// Set of competition IDs the user follows (e.g. ["epl", "ucl", "nba"]).
+    var followedCompetitionIds: Set<String> {
         didSet {
             UserDefaults.standard.set(
-                followedCompetitions.sorted().joined(separator: ","),
-                forKey: "sportshorts.followed"
+                followedCompetitionIds.sorted().joined(separator: ","),
+                forKey: "sportshorts.followed_ids"
             )
         }
     }
 
-    var catalog: ChannelCatalogPayload = [:]
+    var catalog: Catalog = Catalog(sports: [])
     var feed: [VideoItem] = []
     var isLoadingFeed = false
     var lastFeedError: String?
 
     init() {
-        let countryCode = UserDefaults.standard.string(forKey: "sportshorts.country")
-        self.country = Country.supported.first { $0.code == countryCode }
-        let joined = UserDefaults.standard.string(forKey: "sportshorts.followed") ?? ""
-        self.followedCompetitions = Set(joined.split(separator: ",").map(String.init).filter { !$0.isEmpty })
+        let code = UserDefaults.standard.string(forKey: "sportshorts.country")
+        self.country = Country.supported.first { $0.code == code }
+        let joined = UserDefaults.standard.string(forKey: "sportshorts.followed_ids") ?? ""
+        self.followedCompetitionIds = Set(joined.split(separator: ",").map(String.init).filter { !$0.isEmpty })
     }
 
     var hasCompletedOnboarding: Bool {
-        country != nil && !followedCompetitions.isEmpty
+        country != nil && !followedCompetitionIds.isEmpty
     }
 
-    /// Channels for the current country filtered to followed competitions.
-    var activeChannels: [ChannelEntry] {
-        guard let country else { return [] }
-        let all = catalog[country.code] ?? []
-        if followedCompetitions.isEmpty { return all }
-        return all.filter { followedCompetitions.contains($0.competition) }
+    /// Flat list of (sport, competition) pairs the user follows.
+    var followedCompetitions: [(sport: Sport, competition: Competition)] {
+        var out: [(Sport, Competition)] = []
+        for sport in catalog.sports {
+            for comp in sport.competitions where followedCompetitionIds.contains(comp.id) {
+                out.append((sport, comp))
+            }
+        }
+        return out
+    }
+
+    /// All channels to query for the current country, with their owning sport/competition.
+    var activeQueries: [(sport: Sport, competition: Competition, channel: Channel)] {
+        let code = country?.code ?? ""
+        var out: [(Sport, Competition, Channel)] = []
+        for (sport, comp) in followedCompetitions {
+            for ch in comp.effectiveChannels(for: code) {
+                out.append((sport, comp, ch))
+            }
+        }
+        return out
     }
 }

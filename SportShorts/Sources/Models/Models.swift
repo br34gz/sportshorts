@@ -4,8 +4,8 @@ import Foundation
 
 struct Country: Identifiable, Hashable, Codable {
     let code: String        // ISO-2 like "AU", "UK"
-    let name: String        // "Australia"
-    let flag: String        // emoji flag
+    let name: String
+    let flag: String
 
     var id: String { code }
 
@@ -19,22 +19,18 @@ struct Country: Identifiable, Hashable, Codable {
     ]
 }
 
-// MARK: - Sport / Competition / Channel
+// MARK: - Channel
 
-struct ChannelEntry: Identifiable, Hashable, Codable {
-    let sport: String           // e.g. "Rugby League"
-    let competition: String     // e.g. "NRL"
-    let channelId: String       // "UCxxxxxxxxxxxxxxxxxxxx"
-    let handle: String?         // "@NRL"
-    let note: String?
-    /// Optional override: pull videos from this YouTube playlist instead of the channel's
-    /// latest-15 feed. Useful when a channel posts many small clips and the actual match
-    /// highlights live in a specific playlist (e.g. SBS Sport's FIFA World Cup playlist).
+/// A single YouTube channel or playlist that posts highlights for a competition
+/// in (optionally) a specific country.
+struct Channel: Identifiable, Hashable, Codable {
+    let channelId: String
     let playlistId: String?
+    let handle: String?
+    let note: String?
 
     var id: String { (playlistId ?? "") + ":" + channelId }
 
-    /// The RSS URL we should hit for this entry's videos.
     var feedURL: URL {
         if let pid = playlistId {
             return URL(string: "https://www.youtube.com/feeds/videos.xml?playlist_id=\(pid)")!
@@ -43,33 +39,69 @@ struct ChannelEntry: Identifiable, Hashable, Codable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case sport, competition, handle, note
+        case handle, note
         case channelId = "channel_id"
         case playlistId = "playlist_id"
     }
 }
 
-// MARK: - Catalog
+// MARK: - Competition
 
-/// The shape of `channels.json` at the repo root.
-typealias ChannelCatalogPayload = [String: [ChannelEntry]]
+/// One competition (Premier League, Champions League, etc) within a sport.
+/// Channels are split into a `global` set (used everywhere) and per-country
+/// supplements that apply only when the user has selected that country.
+struct Competition: Identifiable, Hashable, Codable {
+    let id: String                              // "epl", "ucl"
+    let label: String                           // "Premier League"
+    let globalChannels: [Channel]
+    let countryChannels: [String: [Channel]]    // "AU" -> [Channel...]
+
+    func effectiveChannels(for countryCode: String) -> [Channel] {
+        var merged: [Channel] = globalChannels
+        if let extras = countryChannels[countryCode] {
+            for ch in extras where !merged.contains(ch) {
+                merged.append(ch)
+            }
+        }
+        return merged
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, label
+        case globalChannels = "global_channels"
+        case countryChannels = "country_channels"
+    }
+}
+
+// MARK: - Sport
+
+struct Sport: Identifiable, Hashable, Codable {
+    let id: String                  // "soccer", "nba"
+    let label: String               // "Soccer"
+    let icon: String                // SF Symbol name
+    let competitions: [Competition]
+}
+
+// MARK: - Catalog (top-level payload of channels.json)
+
+struct Catalog: Codable {
+    let sports: [Sport]
+}
 
 // MARK: - Video
 
 struct VideoItem: Identifiable, Hashable {
-    let id: String                          // YouTube video ID
+    let id: String                  // YouTube video ID
     let title: String
     let channelTitle: String
     let channelId: String
     let publishedAt: Date
     let thumbnailURL: URL?
-    let competition: String                 // joined from ChannelEntry
-    let sport: String
+    let competitionId: String
+    let competitionLabel: String
+    let sportId: String
+    let sportLabel: String
+    let sportIcon: String
 
-    var watchURL: URL {
-        URL(string: "https://www.youtube.com/watch?v=\(id)")!
-    }
-    var embedURL: URL {
-        URL(string: "https://www.youtube.com/embed/\(id)?playsinline=1&rel=0&modestbranding=1")!
-    }
+    var watchURL: URL { URL(string: "https://www.youtube.com/watch?v=\(id)")! }
 }

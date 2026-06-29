@@ -7,7 +7,7 @@ struct VideoCard: View {
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
-                ZStack(alignment: .topTrailing) {
+                ZStack(alignment: .topLeading) {
                     AsyncImage(url: item.thumbnailURL) { phase in
                         switch phase {
                         case .success(let img):
@@ -19,11 +19,19 @@ struct VideoCard: View {
                     .frame(maxWidth: .infinity)
                     .clipped()
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "play.circle.fill").font(.title3)
+                    // Sport icon — top-left, mirrors where the YouTube watermark sits top-right.
+                    HStack(spacing: 6) {
+                        Image(systemName: item.sportIcon)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                        Text(item.competitionLabel)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
                     }
-                    .padding(8)
-                    .background(.ultraThinMaterial, in: Circle())
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(.ultraThinMaterial, in: Capsule(style: .continuous))
                     .padding(10)
                 }
 
@@ -33,10 +41,6 @@ struct VideoCard: View {
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     HStack(spacing: 6) {
-                        Text(item.competition)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tint)
-                        Text("·").foregroundStyle(.tertiary)
                         Text(item.channelTitle)
                             .font(.caption)
                             .foregroundStyle(.secondary)
