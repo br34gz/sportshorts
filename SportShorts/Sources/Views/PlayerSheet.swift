@@ -8,28 +8,31 @@ struct PlayerSheet: View {
     @State private var skipRangesLoaded = false
     @State private var matchStats: MatchStats?
     @State private var revealStats = false
+    @State private var unplayable = false
 
     var body: some View {
         NavigationStack {
             GeometryReader { geo in
                 let videoHeight = geo.size.width * 9 / 16
                 VStack(spacing: 0) {
-                    // Player: WKWebView clipped to just the 16:9 strip. Injected CSS
-                    // hides YouTube's top bar so the player sits at Y=0.
-                    YouTubeBrowserView(
-                        videoId: item.id,
-                        skipRanges: skipRanges,
-                        skipRangesLoaded: skipRangesLoaded
-                    )
+                    ZStack {
+                        Color.black
+                        if unplayable {
+                            embedFailedView.padding()
+                        } else {
+                            IFramePlayer(
+                                videoId: item.id,
+                                skipRanges: skipRanges,
+                                skipRangesLoaded: skipRangesLoaded,
+                                onUnplayable: { unplayable = true }
+                            )
+                        }
+                    }
                     .frame(height: videoHeight)
-                    .clipped()
 
-                    // Stats panel (football only, when ESPN has the match)
                     if let stats = matchStats {
                         StatsPanel(stats: stats, revealed: $revealStats)
                     } else {
-                        // Fill remaining height with black so the masked YouTube page below
-                        // (still loaded in the WebView but clipped off-screen) is invisible.
                         Color.black
                     }
                 }
@@ -65,6 +68,31 @@ struct PlayerSheet: View {
             }
         }
     }
+
+    private var embedFailedView: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "rectangle.on.rectangle.slash")
+                .font(.system(size: 36))
+                .foregroundStyle(.white.opacity(0.55))
+            Text("Publisher disabled in-app playback")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .multilineTextAlignment(.center)
+            Button {
+                UIApplication.shared.open(item.watchURL)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.fill")
+                    Text("Watch on YouTube")
+                }
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+            }
+            .buttonStyle(.bordered)
+            .tint(.white)
+        }
+    }
 }
 
 // MARK: - Nav title
@@ -98,82 +126,107 @@ private struct NavTitleBlock: View {
     }
 }
 
-// MARK: - WebView
+// MARK: - Custom-HTML iframe player
 
-struct YouTubeBrowserView: UIViewRepresentable {
+/// Hand-built HTML page hosting only a 100% × 100% YouTube iframe via the
+/// IFrame Player API. No YouTube page chrome — just the player. SponsorBlock
+/// segments are passed in and the player JS uses `seekTo()` to skip them.
+struct IFramePlayer: UIViewRepresentable {
     let videoId: String
     let skipRanges: [[Double]]
     let skipRangesLoaded: Bool
+    let onUnplayable: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(onUnplayable: onUnplayable) }
 
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
-
         let userContent = WKUserContentController()
-
-        // Inject minimal CSS at document-start to hide YouTube's mobile top bar so
-        // the player sits at Y=0 and fills width. We don't touch the player itself
-        // or any "below the player" structure — that's clipped off-screen in SwiftUI.
-        let chromeCSS = """
-        ytm-mobile-topbar-renderer,
-        .mobile-topbar-header-content,
-        header[role=banner],
-        #masthead-container,
-        ytm-app-header-renderer { display:none !important; }
-        html, body { background:#000 !important; margin:0 !important; padding:0 !important; }
-        """
-        let cssScript = WKUserScript(
-            source: "(function(){var s=document.createElement('style');s.textContent=`\(chromeCSS)`;document.documentElement.appendChild(s);})();",
-            injectionTime: .atDocumentStart,
-            forMainFrameOnly: false
-        )
-        userContent.addUserScript(cssScript)
-
+        userContent.add(context.coordinator, name: "playerEvent")
         config.userContentController = userContent
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
         webView.backgroundColor = .black
-        webView.scrollView.backgroundColor = .black
         webView.scrollView.isScrollEnabled = false
         webView.scrollView.bounces = false
-
+        webView.scrollView.backgroundColor = .black
         installAdBlocker(on: webView)
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        let url = URL(string: "https://m.youtube.com/watch?v=\(videoId)")!
-        if webView.url != url {
-            webView.load(URLRequest(url: url))
-        }
-        if skipRangesLoaded {
+        if context.coordinator.lastVideoId != videoId || context.coordinator.lastSkipRangesLoaded != skipRangesLoaded {
+            context.coordinator.lastVideoId = videoId
+            context.coordinator.lastSkipRangesLoaded = skipRangesLoaded
             let rangesJSON = (try? String(data: JSONSerialization.data(withJSONObject: skipRanges), encoding: .utf8)) ?? "[]"
-            let js = """
-            (function() {
-              if (window.__sportshortsSponsorBlockInstalled) return;
-              window.__sportshortsSponsorBlockInstalled = true;
-              const SKIP_RANGES = \(rangesJSON);
-              if (!SKIP_RANGES.length) return;
-              setInterval(function() {
-                try {
-                  const v = document.querySelector('video');
-                  if (!v) return;
-                  const t = v.currentTime;
-                  for (const r of SKIP_RANGES) {
-                    const [start, end] = r;
-                    if (t >= start && t < end - 0.2) {
-                      v.currentTime = end;
-                      return;
+            webView.loadHTMLString(html(rangesJSON: rangesJSON), baseURL: URL(string: "https://www.youtube.com"))
+        }
+    }
+
+    private func html(rangesJSON: String) -> String {
+        """
+        <!DOCTYPE html>
+        <html><head>
+          <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+          <style>
+            html, body { margin:0; padding:0; background:#000; height:100vh; width:100vw; overflow:hidden; touch-action:manipulation; }
+            #player { width:100vw; height:100vh; }
+            iframe { border:0; width:100%; height:100%; background:#000; }
+          </style>
+        </head><body>
+          <div id="player"></div>
+          <script>
+            const SKIP_RANGES = \(rangesJSON);
+            const tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.head.appendChild(tag);
+
+            function post(payload) {
+              try { window.webkit.messageHandlers.playerEvent.postMessage(payload); } catch (e) {}
+            }
+
+            function onYouTubeIframeAPIReady() {
+              const player = new YT.Player('player', {
+                width: '100%',
+                height: '100%',
+                videoId: '\(videoId)',
+                playerVars: {
+                  autoplay: 1, playsinline: 1, rel: 0,
+                  modestbranding: 1, fs: 1, iv_load_policy: 3, controls: 1
+                },
+                events: {
+                  onReady: function(e) {
+                    post({type:'ready'});
+                    try { e.target.playVideo(); } catch (err) {}
+                    if (SKIP_RANGES.length) {
+                      setInterval(function() {
+                        try {
+                          const t = e.target.getCurrentTime();
+                          for (const r of SKIP_RANGES) {
+                            const [s, end] = r;
+                            if (t >= s && t < end - 0.2) {
+                              e.target.seekTo(end, true);
+                              return;
+                            }
+                          }
+                        } catch (err) {}
+                      }, 300);
+                    }
+                  },
+                  onError: function(e) {
+                    if (e.data === 100 || e.data === 101 || e.data === 150) {
+                      post({type:'unplayable', code:e.data});
                     }
                   }
-                } catch (e) {}
-              }, 300);
-            })();
-            """
-            webView.evaluateJavaScript(js)
-        }
+                }
+              });
+            }
+          </script>
+        </body></html>
+        """
     }
 
     private func installAdBlocker(on webView: WKWebView) {
@@ -181,12 +234,9 @@ struct YouTubeBrowserView: UIViewRepresentable {
             ["trigger": ["url-filter": #".*doubleclick\.net.*"#], "action": ["type": "block"]],
             ["trigger": ["url-filter": #".*googleadservices\.com.*"#], "action": ["type": "block"]],
             ["trigger": ["url-filter": #".*googlesyndication\.com.*"#], "action": ["type": "block"]],
-            ["trigger": ["url-filter": #".*adservice\.google\..*"#], "action": ["type": "block"]],
             ["trigger": ["url-filter": #".*google-analytics\.com.*"#], "action": ["type": "block"]],
             ["trigger": ["url-filter": #".*youtube\.com\/api\/stats\/ads.*"#], "action": ["type": "block"]],
             ["trigger": ["url-filter": #".*youtube\.com\/pagead\/.*"#], "action": ["type": "block"]],
-            ["trigger": ["url-filter": #".*\/get_midroll_info.*"#], "action": ["type": "block"]],
-            ["trigger": ["url-filter": #".*\/ad_companion.*"#], "action": ["type": "block"]],
         ]
         guard let data = try? JSONSerialization.data(withJSONObject: rules),
               let json = String(data: data, encoding: .utf8) else { return }
@@ -195,6 +245,19 @@ struct YouTubeBrowserView: UIViewRepresentable {
             encodedContentRuleList: json
         ) { list, _ in
             if let list { webView.configuration.userContentController.add(list) }
+        }
+    }
+
+    final class Coordinator: NSObject, WKScriptMessageHandler {
+        let onUnplayable: () -> Void
+        var lastVideoId: String?
+        var lastSkipRangesLoaded = false
+
+        init(onUnplayable: @escaping () -> Void) { self.onUnplayable = onUnplayable }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
+            if type == "unplayable" { onUnplayable() }
         }
     }
 }
