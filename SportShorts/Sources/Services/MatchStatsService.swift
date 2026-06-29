@@ -7,11 +7,12 @@ import Foundation
 struct MatchStats: Hashable {
     let homeTeam: String
     let homeAbbr: String
-    let homeScore: Int
+    let homeScore: Int                          // sets won (tennis), goals/points (team sports)
     let awayTeam: String
     let awayAbbr: String
     let awayScore: Int
-    let detail: String              // "FT", "Final", "Final/OT", etc
+    let lineScore: String?                      // tennis only: "6-4 7-5 6-3"
+    let detail: String
     let kickoff: Date?
     let competitionName: String?
     let venue: String?
@@ -21,7 +22,6 @@ struct MatchStats: Hashable {
         let label: String
         let home: String
         let away: String
-        /// 0.0 → fully favours away; 1.0 → fully favours home. Drives the bar overlay.
         let homeRatio: Double?
     }
 }
@@ -61,10 +61,14 @@ enum MatchStatsService {
         "nhl": .init(espnSport: "hockey",     espnLeague: "nhl", stats: nhlStats),
 
         // Australian Rules
-        "afl": .init(espnSport: "aussie-football", espnLeague: "afl", stats: aflStats),
+        "afl": .init(espnSport: "australian-football", espnLeague: "afl", stats: aflStats),
 
-        // Rugby League
-        "nrl": .init(espnSport: "rugby-league", espnLeague: "nrl", stats: nrlStats),
+        // Tennis — same league slug for all Grand Slams; matches are filtered
+        // by date and team-name parsing.
+        "ao":       .init(espnSport: "tennis", espnLeague: "atp", stats: tennisStats),
+        "wimbledon":.init(espnSport: "tennis", espnLeague: "atp", stats: tennisStats),
+        "us_open":  .init(espnSport: "tennis", espnLeague: "atp", stats: tennisStats),
+        "rg":       .init(espnSport: "tennis", espnLeague: "atp", stats: tennisStats),
     ]
 
     private static let soccerStats: [(String, String, Bool)] = [
@@ -130,16 +134,19 @@ enum MatchStatsService {
         ("inside50s",   "Inside 50s", false),
     ]
 
-    private static let nrlStats: [(String, String, Bool)] = [
-        ("tries",            "Tries",      false),
-        ("conversions",      "Goals",      false),
-        ("penaltyGoals",     "Pen Goals",  false),
-        ("metres",           "Run Metres", false),
-        ("tackles",          "Tackles",    false),
-        ("missedTackles",    "Missed Tk",  false),
-        ("offloads",         "Offloads",   false),
-        ("possessionPct",    "Possession", true),
-        ("completionRate",   "Completion %", true),
+    // NRL removed — ESPN's public API does not carry NRL data.
+
+    private static let tennisStats: [(String, String, Bool)] = [
+        ("aces",                "Aces",            false),
+        ("doubleFaults",        "Double Faults",   false),
+        ("winners",             "Winners",         false),
+        ("unforcedErrors",      "Unforced Errors", false),
+        ("breakPointsConverted","Break Points",    false),
+        ("firstServePct",       "1st Serve %",     true),
+        ("firstServePointsWonPct","1st Serve Won %", true),
+        ("secondServePointsWonPct","2nd Serve Won %", true),
+        ("netPointsWonPct",     "Net Points %",    true),
+        ("totalPointsWon",      "Total Points",    false),
     ]
 
     static func supports(competitionId: String) -> Bool {
@@ -201,6 +208,22 @@ enum MatchStatsService {
                 let detail = (stype["detail"] as? String) ?? "FT"
                 let venue = (comp["venue"] as? [String: Any])?["fullName"] as? String
 
+                // Tennis: per-set linescores ("6-4 7-5 6-3")
+                let lineScore: String? = {
+                    guard config.espnSport == "tennis" else { return nil }
+                    let homeLines = (home["linescores"] as? [[String: Any]]) ?? []
+                    let awayLines = (away["linescores"] as? [[String: Any]]) ?? []
+                    let n = min(homeLines.count, awayLines.count)
+                    guard n > 0 else { return nil }
+                    var parts: [String] = []
+                    for i in 0..<n {
+                        let hv = Int(homeLines[i]["value"] as? Double ?? 0)
+                        let av = Int(awayLines[i]["value"] as? Double ?? 0)
+                        parts.append("\(hv)-\(av)")
+                    }
+                    return parts.joined(separator: " ")
+                }()
+
                 var kickoff: Date?
                 if let iso = event["date"] as? String {
                     kickoff = ISO8601DateFormatter().date(from: iso)
@@ -216,6 +239,7 @@ enum MatchStatsService {
                     awayTeam: awayName,
                     awayAbbr: teamAbbr(away),
                     awayScore: awayScore,
+                    lineScore: lineScore,
                     detail: detail,
                     kickoff: kickoff,
                     competitionName: (event["league"] as? [String: Any])?["name"] as? String,

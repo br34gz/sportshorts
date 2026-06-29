@@ -306,27 +306,34 @@ struct StatsPanel: View {
     }
 
     private var scoreBlock: some View {
-        HStack(alignment: .center, spacing: 8) {
-            VStack(spacing: 2) {
-                Text(stats.homeTeam).font(.subheadline.weight(.semibold)).foregroundStyle(.white).multilineTextAlignment(.center)
-                Text(stats.homeAbbr).font(.caption2).foregroundStyle(.white.opacity(0.6))
-            }
-            .frame(maxWidth: .infinity)
+        VStack(spacing: 6) {
+            HStack(alignment: .center, spacing: 8) {
+                VStack(spacing: 2) {
+                    Text(stats.homeTeam).font(.subheadline.weight(.semibold)).foregroundStyle(.white).multilineTextAlignment(.center)
+                    Text(stats.homeAbbr).font(.caption2).foregroundStyle(.white.opacity(0.6))
+                }
+                .frame(maxWidth: .infinity)
 
-            VStack(spacing: 4) {
-                Text("\(stats.homeScore)  –  \(stats.awayScore)")
-                    .font(.system(size: 32, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                Text(stats.detail)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.6))
-            }
+                VStack(spacing: 4) {
+                    Text("\(stats.homeScore)  –  \(stats.awayScore)")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text(stats.detail)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
 
-            VStack(spacing: 2) {
-                Text(stats.awayTeam).font(.subheadline.weight(.semibold)).foregroundStyle(.white).multilineTextAlignment(.center)
-                Text(stats.awayAbbr).font(.caption2).foregroundStyle(.white.opacity(0.6))
+                VStack(spacing: 2) {
+                    Text(stats.awayTeam).font(.subheadline.weight(.semibold)).foregroundStyle(.white).multilineTextAlignment(.center)
+                    Text(stats.awayAbbr).font(.caption2).foregroundStyle(.white.opacity(0.6))
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
+            if let lineScore = stats.lineScore {
+                Text(lineScore)
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.white.opacity(0.85))
+            }
         }
     }
 
