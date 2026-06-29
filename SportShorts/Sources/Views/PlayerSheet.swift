@@ -6,37 +6,76 @@ struct PlayerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var skipRanges: [[Double]] = []
     @State private var skipRangesLoaded = false
+    @State private var matchStats: MatchStats?
+    @State private var revealStats = false
 
     var body: some View {
         NavigationStack {
-            YouTubeBrowserView(videoId: item.id, skipRanges: skipRanges, skipRangesLoaded: skipRangesLoaded)
-                .ignoresSafeArea(edges: .bottom)
-                .toolbar {
-                    ToolbarItem(placement: .principal) { NavTitleBlock(item: item) }
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button { dismiss() } label: { Image(systemName: "xmark") }
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        ShareLink(item: item.watchURL) {
-                            Image(systemName: "square.and.arrow.up")
+            VStack(spacing: 0) {
+                // Player block: WKWebView underneath, black overlay above to mask YouTube
+                // chrome (related videos / comments / description — which may contain
+                // spoilers).
+                GeometryReader { geo in
+                    let videoHeight = min(geo.size.height * 0.45, geo.size.width * 9 / 16)
+                    ZStack(alignment: .top) {
+                        YouTubeBrowserView(
+                            videoId: item.id,
+                            skipRanges: skipRanges,
+                            skipRangesLoaded: skipRangesLoaded
+                        )
+                        VStack(spacing: 0) {
+                            Color.clear.frame(height: videoHeight)
+                            Color.black
                         }
+                        .allowsHitTesting(false)
                     }
                 }
-                .toolbarBackground(.black, for: .navigationBar)
-                .toolbarBackground(.visible, for: .navigationBar)
-                .toolbarColorScheme(.dark, for: .navigationBar)
+                .frame(maxHeight: .infinity)
+                .background(Color.black)
+
+                // Stats panel (football only, when ESPN has the match)
+                if let stats = matchStats {
+                    StatsPanel(stats: stats, revealed: $revealStats)
+                        .frame(maxHeight: 360)
+                }
+            }
+            .background(Color.black.ignoresSafeArea())
+            .toolbar {
+                ToolbarItem(placement: .principal) { NavTitleBlock(item: item) }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    ShareLink(item: item.watchURL) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+            }
+            .toolbarBackground(.black, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
         .preferredColorScheme(.dark)
         .task {
             skipRanges = await SponsorBlock.fetchSkipRanges(videoId: item.id)
             skipRangesLoaded = true
         }
+        .task {
+            if MatchStatsService.supports(competitionId: item.competitionId) {
+                matchStats = await MatchStatsService.fetchMatch(
+                    title: item.title,
+                    publishedAt: item.publishedAt,
+                    competitionId: item.competitionId
+                )
+            }
+        }
     }
 }
 
+// MARK: - Nav title
+
 private struct NavTitleBlock: View {
     let item: VideoItem
-
     var body: some View {
         VStack(spacing: 1) {
             Text(matchupOrTitle)
@@ -64,8 +103,8 @@ private struct NavTitleBlock: View {
     }
 }
 
-/// WKWebView loading m.youtube.com directly. SponsorBlock segments (when loaded)
-/// drive a passive currentTime → seek loop. Ad blocker is a content rule list.
+// MARK: - WebView
+
 struct YouTubeBrowserView: UIViewRepresentable {
     let videoId: String
     let skipRanges: [[Double]]
@@ -83,9 +122,10 @@ struct YouTubeBrowserView: UIViewRepresentable {
         webView.isOpaque = false
         webView.backgroundColor = .black
         webView.scrollView.backgroundColor = .black
+        webView.scrollView.isScrollEnabled = false
+        webView.scrollView.bounces = false
 
         installAdBlocker(on: webView)
-
         return webView
     }
 
@@ -94,7 +134,6 @@ struct YouTubeBrowserView: UIViewRepresentable {
         if webView.url != url {
             webView.load(URLRequest(url: url))
         }
-        // SponsorBlock skip script: re-evaluate once skipRanges arrive (passive seek-only).
         if skipRangesLoaded {
             let rangesJSON = (try? String(data: JSONSerialization.data(withJSONObject: skipRanges), encoding: .utf8)) ?? "[]"
             let js = """
@@ -123,7 +162,6 @@ struct YouTubeBrowserView: UIViewRepresentable {
         }
     }
 
-    /// Compile a small content rule list to block common ad-network endpoints.
     private func installAdBlocker(on webView: WKWebView) {
         let rules: [[String: Any]] = [
             ["trigger": ["url-filter": #".*doubleclick\.net.*"#], "action": ["type": "block"]],
@@ -143,6 +181,128 @@ struct YouTubeBrowserView: UIViewRepresentable {
             encodedContentRuleList: json
         ) { list, _ in
             if let list { webView.configuration.userContentController.add(list) }
+        }
+    }
+}
+
+// MARK: - Match stats panel
+
+struct StatsPanel: View {
+    let stats: MatchStats
+    @Binding var revealed: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if revealed {
+                revealedContent
+            } else {
+                spoilerCurtain
+            }
+        }
+        .background(
+            LinearGradient(colors: [Color.black, Color(white: 0.07)], startPoint: .top, endPoint: .bottom)
+        )
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.5)
+        }
+    }
+
+    private var spoilerCurtain: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "eye.slash.fill")
+                .font(.title2)
+                .foregroundStyle(.white.opacity(0.7))
+            Text("Match stats available")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text("Tapping below will reveal the score and key stats — spoilers ahead.")
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.6))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
+            Button { withAnimation(.easeOut(duration: 0.2)) { revealed = true } } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chart.bar.fill")
+                    Text("Show stats")
+                }
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+            }
+            .buttonStyle(.bordered)
+            .tint(.white)
+        }
+        .padding(.vertical, 22)
+        .padding(.horizontal, 18)
+        .frame(maxWidth: .infinity)
+    }
+
+    private var revealedContent: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                scoreBlock
+                Divider().background(.white.opacity(0.15))
+                statsLines
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
+        }
+    }
+
+    private var scoreBlock: some View {
+        HStack(alignment: .center, spacing: 8) {
+            VStack(spacing: 2) {
+                Text(stats.homeTeam).font(.subheadline.weight(.semibold)).foregroundStyle(.white).multilineTextAlignment(.center)
+                Text(stats.homeAbbr).font(.caption2).foregroundStyle(.white.opacity(0.6))
+            }
+            .frame(maxWidth: .infinity)
+
+            VStack(spacing: 4) {
+                Text("\(stats.homeScore)  –  \(stats.awayScore)")
+                    .font(.system(size: 32, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                Text(stats.detail)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+
+            VStack(spacing: 2) {
+                Text(stats.awayTeam).font(.subheadline.weight(.semibold)).foregroundStyle(.white).multilineTextAlignment(.center)
+                Text(stats.awayAbbr).font(.caption2).foregroundStyle(.white.opacity(0.6))
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
+    private var statsLines: some View {
+        VStack(spacing: 10) {
+            ForEach(stats.lines, id: \.self) { line in
+                VStack(spacing: 4) {
+                    HStack {
+                        Text(line.home)
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Text(line.label)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.7))
+                        Spacer()
+                        Text(line.away)
+                            .font(.callout.weight(.medium))
+                            .foregroundStyle(.white)
+                    }
+                    if let ratio = line.homeRatio {
+                        GeometryReader { geo in
+                            HStack(spacing: 2) {
+                                Capsule().fill(Color.accentColor)
+                                    .frame(width: max(2, geo.size.width * ratio))
+                                Capsule().fill(Color.red.opacity(0.7))
+                            }
+                        }
+                        .frame(height: 4)
+                    }
+                }
+            }
         }
     }
 }
