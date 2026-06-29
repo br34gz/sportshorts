@@ -241,8 +241,27 @@ enum MatchStatsService {
                   let teams = boxscore["teams"] as? [[String: Any]],
                   teams.count == 2 else { return [] }
 
-            let homeStats = teams.first(where: { (($0["team"] as? [String: Any])?["abbreviation"] as? String) == homeAbbr }) ?? teams[0]
-            let awayStats = teams.first(where: { ($0 as NSObject) !== (homeStats as NSObject) }) ?? teams[1]
+            // Identify by team abbreviation match — relying on Swift dictionary
+            // identity comparisons doesn't work (they're value types), so the
+            // previous `!==` check was always returning the same dict for BOTH
+            // sides and the panel showed identical stats for home and away.
+            let firstAbbr = ((teams[0]["team"] as? [String: Any])?["abbreviation"] as? String) ?? ""
+            let homeStats: [String: Any]
+            let awayStats: [String: Any]
+            if firstAbbr == homeAbbr {
+                homeStats = teams[0]
+                awayStats = teams[1]
+            } else if firstAbbr == awayAbbr {
+                homeStats = teams[1]
+                awayStats = teams[0]
+            } else {
+                // Fall back to ESPN's `homeAway` field if abbreviations don't match.
+                if (teams[0]["homeAway"] as? String) == "home" {
+                    homeStats = teams[0]; awayStats = teams[1]
+                } else {
+                    homeStats = teams[1]; awayStats = teams[0]
+                }
+            }
 
             var homeByKey: [String: String] = [:]
             for s in (homeStats["statistics"] as? [[String: Any]]) ?? [] {
