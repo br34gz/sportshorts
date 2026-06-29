@@ -128,9 +128,16 @@ private struct NavTitleBlock: View {
 
 // MARK: - Custom-HTML iframe player
 
-/// Hand-built HTML page hosting only a 100% × 100% YouTube iframe via the
-/// IFrame Player API. No YouTube page chrome — just the player. SponsorBlock
-/// segments are passed in and the player JS uses `seekTo()` to skip them.
+/// Player iframe that loads via a CodePen-hosted YouTube proxy. CodePen's
+/// `cdpn.io` domain is on most publishers' "allowed embed" lists, which
+/// bypasses the "Video unavailable / Watch on YouTube" iframe restrictions
+/// that direct youtube.com embeds hit.
+/// (Original pen: https://codepen.io/brownsugar/pen/oNPzxKo )
+///
+/// Trade-off: we lose SponsorBlock skip integration. SponsorBlock requires
+/// access to the YouTube IFrame Player API, which sits inside a cross-origin
+/// nested iframe we can't reach into from this WebView. SponsorBlock ranges
+/// are still fetched and could be reattached via postMessage in a follow-up.
 struct IFramePlayer: UIViewRepresentable {
     let videoId: String
     let skipRanges: [[Double]]
@@ -158,75 +165,14 @@ struct IFramePlayer: UIViewRepresentable {
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
-        if context.coordinator.lastVideoId != videoId || context.coordinator.lastSkipRangesLoaded != skipRangesLoaded {
+        if context.coordinator.lastVideoId != videoId {
             context.coordinator.lastVideoId = videoId
-            context.coordinator.lastSkipRangesLoaded = skipRangesLoaded
-            let rangesJSON = (try? String(data: JSONSerialization.data(withJSONObject: skipRanges), encoding: .utf8)) ?? "[]"
-            webView.loadHTMLString(html(rangesJSON: rangesJSON), baseURL: URL(string: "https://www.youtube.com"))
+            // CodePen proxy URL — supports YouTube native player params via query string.
+            let urlStr = "https://cdpn.io/pen/debug/oNPzxKo?v=\(videoId)&autoplay=1&playsinline=1&mute=1&rel=0&modestbranding=1&iv_load_policy=3&fs=1"
+            if let url = URL(string: urlStr) {
+                webView.load(URLRequest(url: url))
+            }
         }
-    }
-
-    private func html(rangesJSON: String) -> String {
-        """
-        <!DOCTYPE html>
-        <html><head>
-          <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-          <style>
-            html, body { margin:0; padding:0; background:#000; height:100vh; width:100vw; overflow:hidden; touch-action:manipulation; }
-            #player { width:100vw; height:100vh; }
-            iframe { border:0; width:100%; height:100%; background:#000; }
-          </style>
-        </head><body>
-          <div id="player"></div>
-          <script>
-            const SKIP_RANGES = \(rangesJSON);
-            const tag = document.createElement('script');
-            tag.src = "https://www.youtube.com/iframe_api";
-            document.head.appendChild(tag);
-
-            function post(payload) {
-              try { window.webkit.messageHandlers.playerEvent.postMessage(payload); } catch (e) {}
-            }
-
-            function onYouTubeIframeAPIReady() {
-              const player = new YT.Player('player', {
-                width: '100%',
-                height: '100%',
-                videoId: '\(videoId)',
-                playerVars: {
-                  autoplay: 1, playsinline: 1, rel: 0,
-                  modestbranding: 1, fs: 1, iv_load_policy: 3, controls: 1
-                },
-                events: {
-                  onReady: function(e) {
-                    post({type:'ready'});
-                    try { e.target.playVideo(); } catch (err) {}
-                    if (SKIP_RANGES.length) {
-                      setInterval(function() {
-                        try {
-                          const t = e.target.getCurrentTime();
-                          for (const r of SKIP_RANGES) {
-                            const [s, end] = r;
-                            if (t >= s && t < end - 0.2) {
-                              e.target.seekTo(end, true);
-                              return;
-                            }
-                          }
-                        } catch (err) {}
-                      }, 300);
-                    }
-                  },
-                  onError: function(e) {
-                    if (e.data === 100 || e.data === 101 || e.data === 150) {
-                      post({type:'unplayable', code:e.data});
-                    }
-                  }
-                }
-              });
-            }
-          </script>
-        </body></html>
-        """
     }
 
     private func installAdBlocker(on webView: WKWebView) {
@@ -251,7 +197,6 @@ struct IFramePlayer: UIViewRepresentable {
     final class Coordinator: NSObject, WKScriptMessageHandler {
         let onUnplayable: () -> Void
         var lastVideoId: String?
-        var lastSkipRangesLoaded = false
 
         init(onUnplayable: @escaping () -> Void) { self.onUnplayable = onUnplayable }
 
