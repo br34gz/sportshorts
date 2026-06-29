@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Country
 
 struct Country: Identifiable, Hashable, Codable {
-    let code: String        // ISO-2 like "AU", "UK"
+    let code: String
     let name: String
     let flag: String
 
@@ -19,90 +19,105 @@ struct Country: Identifiable, Hashable, Codable {
     ]
 }
 
-// MARK: - Channel
+// MARK: - YouTubeChannel
 
-/// A single YouTube channel or playlist that posts highlights for a competition
-/// in (optionally) a specific country.
-struct Channel: Identifiable, Hashable, Codable {
+/// A YouTube channel that posts sports content. Channels are pooled by country
+/// (broadcasters/free-to-air operators serving that country) and globally
+/// (league/sport-official channels not tied to a region). The user's selected
+/// sports filter the feed *after* fetching all channels — channels themselves
+/// are sport-agnostic at the catalog level.
+struct YouTubeChannel: Identifiable, Hashable, Codable {
     let channelId: String
-    let playlistId: String?
-    let handle: String?
+    let name: String
     let note: String?
+    /// Optional sport-id list — used as a prior by SportClassifier when titles
+    /// are ambiguous. e.g. "Sky Sports Football" → ["soccer"]; "BBC Sport" → [].
+    let sportHints: [String]
+    /// True only for channels the user added via Settings.
+    let userAdded: Bool
 
-    var id: String { (playlistId ?? "") + ":" + channelId }
+    var id: String { channelId }
 
     var feedURL: URL {
-        if let pid = playlistId {
-            return URL(string: "https://www.youtube.com/feeds/videos.xml?playlist_id=\(pid)")!
-        }
-        return URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channelId)")!
+        URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channelId)")!
     }
 
     enum CodingKeys: String, CodingKey {
-        case handle, note
         case channelId = "channel_id"
-        case playlistId = "playlist_id"
+        case name, note
+        case sportHints = "sport_hints"
+        case userAdded = "user_added"
+    }
+
+    init(channelId: String, name: String, note: String? = nil, sportHints: [String] = [], userAdded: Bool = false) {
+        self.channelId = channelId
+        self.name = name
+        self.note = note
+        self.sportHints = sportHints
+        self.userAdded = userAdded
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.channelId = try c.decode(String.self, forKey: .channelId)
+        self.name = try c.decode(String.self, forKey: .name)
+        self.note = try c.decodeIfPresent(String.self, forKey: .note)
+        self.sportHints = (try? c.decode([String].self, forKey: .sportHints)) ?? []
+        self.userAdded = (try? c.decode(Bool.self, forKey: .userAdded)) ?? false
     }
 }
 
-// MARK: - Competition
-
-/// One competition (Premier League, Champions League, etc) within a sport.
-/// Channels are split into a `global` set (used everywhere) and per-country
-/// supplements that apply only when the user has selected that country.
-struct Competition: Identifiable, Hashable, Codable {
-    let id: String                              // "epl", "ucl"
-    let label: String                           // "Premier League"
-    let group: String?                          // optional sub-grouping inside a sport, e.g. "England"
-    let globalChannels: [Channel]
-    let countryChannels: [String: [Channel]]    // "AU" -> [Channel...]
-
-    func effectiveChannels(for countryCode: String) -> [Channel] {
-        var merged: [Channel] = globalChannels
-        if let extras = countryChannels[countryCode] {
-            for ch in extras where !merged.contains(ch) {
-                merged.append(ch)
-            }
-        }
-        return merged
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case id, label, group
-        case globalChannels = "global_channels"
-        case countryChannels = "country_channels"
-    }
-}
-
-// MARK: - Sport
+// MARK: - Sport (with classifier keywords + competitions for stats lookup)
 
 struct Sport: Identifiable, Hashable, Codable {
-    let id: String                  // "soccer", "nba"
-    let label: String               // "Soccer"
-    let icon: String                // SF Symbol name
-    let competitions: [Competition]
+    let id: String
+    let label: String
+    let icon: String
+    /// Keywords used by SportClassifier to assign a video title to this sport
+    /// when no channel sport-hint resolves it. Lowercase substrings.
+    let keywords: [String]
+    /// Competition metadata — used to detect specific competitions in titles
+    /// (for MatchStatsService lookup) and to label videos in the feed.
+    let competitions: [CompetitionMeta]
 }
 
-// MARK: - Catalog (top-level payload of channels.json)
+struct CompetitionMeta: Identifiable, Hashable, Codable {
+    let id: String          // "epl", "ucl", "nba"
+    let label: String       // "Premier League"
+    let keywords: [String]  // ["premier league", "epl"]
+}
+
+// MARK: - Catalog (channels.json shape)
 
 struct Catalog: Codable {
+    let countries: [String: [YouTubeChannel]]
+    let globalChannels: [YouTubeChannel]
     let sports: [Sport]
+
+    enum CodingKeys: String, CodingKey {
+        case countries
+        case globalChannels = "global_channels"
+        case sports
+    }
+
+    static let empty = Catalog(countries: [:], globalChannels: [], sports: [])
 }
 
 // MARK: - Video
 
 struct VideoItem: Identifiable, Hashable {
-    let id: String                  // YouTube video ID
+    let id: String
     let title: String
     let channelTitle: String
     let channelId: String
     let publishedAt: Date
     let thumbnailURL: URL?
-    let competitionId: String
-    let competitionLabel: String
     let sportId: String
     let sportLabel: String
     let sportIcon: String
+    /// Competition surfaced if the classifier matched one in the title.
+    let competitionId: String?
+    let competitionLabel: String?
 
     var watchURL: URL { URL(string: "https://www.youtube.com/watch?v=\(id)")! }
 }

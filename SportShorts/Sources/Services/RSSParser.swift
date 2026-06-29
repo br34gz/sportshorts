@@ -2,8 +2,18 @@ import Foundation
 
 enum RSSParser {
 
-    static func parse(_ data: Data, sport: Sport, competition: Competition, channel: Channel) throws -> [VideoItem] {
-        let delegate = FeedDelegate(sport: sport, competition: competition, channel: channel)
+    /// Raw video entry from a YouTube channel RSS feed — pre-classification.
+    /// (The downstream FeedFetcher attaches sport/competition labels.)
+    struct Entry {
+        let id: String
+        let title: String
+        let channelTitle: String
+        let publishedAt: Date
+        let thumbnailURL: URL?
+    }
+
+    static func parse(_ data: Data, channel: YouTubeChannel) throws -> [Entry] {
+        let delegate = FeedDelegate(fallbackChannelTitle: channel.name)
         let parser = XMLParser(data: data)
         parser.delegate = delegate
         guard parser.parse() else {
@@ -13,10 +23,8 @@ enum RSSParser {
     }
 
     private final class FeedDelegate: NSObject, XMLParserDelegate {
-        var items: [VideoItem] = []
-        let sport: Sport
-        let competition: Competition
-        let channel: Channel
+        var items: [Entry] = []
+        let fallbackChannelTitle: String
 
         private var currentElement = ""
         private var currentText = ""
@@ -33,10 +41,8 @@ enum RSSParser {
             return f
         }()
 
-        init(sport: Sport, competition: Competition, channel: Channel) {
-            self.sport = sport
-            self.competition = competition
-            self.channel = channel
+        init(fallbackChannelTitle: String) {
+            self.fallbackChannelTitle = fallbackChannelTitle
         }
 
         func parser(_ parser: XMLParser, didStartElement elementName: String, namespaceURI: String?, qualifiedName qName: String?, attributes attributeDict: [String : String] = [:]) {
@@ -65,18 +71,12 @@ enum RSSParser {
                 case "published": entryPublished = FeedDelegate.iso8601.date(from: text)
                 case "entry":
                     if let id = entryId, let title = entryTitle, let published = entryPublished {
-                        items.append(VideoItem(
+                        items.append(Entry(
                             id: id,
                             title: title,
-                            channelTitle: entryAuthor ?? competition.label,
-                            channelId: channel.channelId,
+                            channelTitle: entryAuthor ?? fallbackChannelTitle,
                             publishedAt: published,
-                            thumbnailURL: entryThumbnail ?? URL(string: "https://i.ytimg.com/vi/\(id)/mqdefault.jpg"),
-                            competitionId: competition.id,
-                            competitionLabel: competition.label,
-                            sportId: sport.id,
-                            sportLabel: sport.label,
-                            sportIcon: sport.icon
+                            thumbnailURL: entryThumbnail ?? URL(string: "https://i.ytimg.com/vi/\(id)/mqdefault.jpg")
                         ))
                     }
                     inEntry = false

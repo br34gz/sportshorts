@@ -1,298 +1,197 @@
 {
   "sports": [
     {
-      "id": "soccer",
-      "label": "Soccer",
-      "icon": "soccerball",
+      "id": "nfl",
+      "label": "NFL",
+      "icon": "football.fill",
+      "keywords": ["nfl", "super bowl", "afc championship", "nfc championship"],
       "competitions": [
-        {
-          "id": "epl",
-          "label": "Premier League",
-          "group": "England",
-          "global_channels": [
-            {"channel_id": "UCG5qGWdu8nIRZqJ_GgDwQ-w", "handle": "@PremierLeague", "note": "Official Premier League channel."}
-          ],
-          "country_channels": {
-            "UK": [{"channel_id": "UCZ7wY7MRDSygp63HIEfdQZA", "handle": "@skysportsfootball", "note": "Sky Sports Football — UK PL rights-holder."}],
-            "US": [{"channel_id": "UCqZQlzSHbVJrwrn5XvzrzcA", "handle": "@NBCSports", "note": "NBC Sports — US PL rights-holder; posts PL highlights in season."}],
-            "AU": [{"channel_id": "UC0jPwNs4B7yJySNewHan5hQ", "handle": "@StanSportFootball", "note": "Stan Sport Football — AU PL rights-holder; clip-form content."}]
-          }
-        },
-        {
-          "id": "fac",
-          "label": "FA Cup",
-          "group": "England",
-          "global_channels": [
-            {"channel_id": "UCChcWqwYXCEs657MQ00qVWA", "handle": "@EmiratesFACup", "note": "Official Emirates FA Cup channel — round-by-round highlights."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "efl",
-          "label": "League Cup",
-          "group": "England",
-          "global_channels": [
-            {"channel_id": "UCCmo_NIuQR5eU4AvBa6sEQQ", "handle": "@theEFL", "note": "Official EFL channel — covers Championship, League One/Two, and Carabao Cup."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "laliga",
-          "label": "La Liga",
-          "group": "Spain",
-          "global_channels": [
-            {"channel_id": "UCTv-XvfzLX3i4IGWAm4sbmA", "handle": "@LaLiga", "note": "Official LaLiga EA SPORTS channel — daily match highlights during season."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "bundesliga",
-          "label": "Bundesliga",
-          "group": "Germany",
-          "global_channels": [
-            {"channel_id": "UC6UL29enLNe4mqwTfAyeNuw", "handle": "@Bundesliga", "note": "Official Bundesliga channel — per-matchday recaps and full highlights."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "ligue1",
-          "label": "Ligue 1",
-          "group": "France",
-          "global_channels": [
-            {"channel_id": "UCQsH5XtIc9hONE1BQjucM0g", "handle": "@Ligue1official", "note": "Official Ligue 1 McDonald's channel — match highlights during season."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "seriea",
-          "label": "Serie A",
-          "group": "Italy",
-          "global_channels": [
-            {"channel_id": "UCBJeMCIeLQos7wacox4hmLQ", "handle": "@SerieA", "note": "Official Lega Serie A channel — daily match highlights and per-club recaps."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "ucl",
-          "label": "Champions League",
-          "group": "International / UEFA",
-          "global_channels": [
-            {"channel_id": "UCyGa1YEx9ST66rYrJTGIKOw", "handle": "@UEFAtv", "note": "Official UEFA channel — UCL goal compilations and per-team highlight reels."}
-          ],
-          "country_channels": {
-            "UK": [{"channel_id": "UC4i_9WvfPRTuRWEaWyfKuFw", "handle": "@tntsportsfootball", "note": "TNT Sports — UK UCL rights-holder; clips and key moments."}],
-            "US": [{"channel_id": "UCET00YnetHT7tOpu12v8jxg", "handle": "@cbssportsgolazo", "note": "CBS Sports Golazo — US UCL rights-holder; extended highlights."}]
-          }
-        },
-        {
-          "id": "uel",
-          "label": "Europa League",
-          "group": "International / UEFA",
-          "global_channels": [
-            {"channel_id": "UCyGa1YEx9ST66rYrJTGIKOw", "handle": "@UEFAtv", "note": "UEFA channel — same as UCL; no standalone active UEL channel since 2020."}
-          ],
-          "country_channels": {
-            "UK": [{"channel_id": "UC4i_9WvfPRTuRWEaWyfKuFw", "handle": "@tntsportsfootball", "note": "TNT Sports — UK UEL rights-holder."}],
-            "US": [{"channel_id": "UCET00YnetHT7tOpu12v8jxg", "handle": "@cbssportsgolazo", "note": "CBS Sports Golazo — US UEL rights-holder."}]
-          }
-        },
-        {
-          "id": "fifa_wc",
-          "label": "FIFA World Cup",
-          "group": "International / UEFA",
-          "global_channels": [],
-          "country_channels": {
-            "AU": [{"channel_id": "UCn6UMS98Ox-B3jkSWlweJ2w", "playlist_id": "PLNuJDkj3zBvPVhoKC6Oq8j4w7AH9l-ejG", "handle": "@SBSSport", "note": "SBS Sport — AU rights-holder, FIFA World Cup 2026™ Match Highlights playlist."}]
-          }
-        }
+        {"id": "nfl", "label": "NFL", "keywords": ["nfl"]}
       ]
     },
     {
       "id": "nba",
       "label": "NBA",
       "icon": "basketball.fill",
+      "keywords": ["nba", "nba finals", "western conference", "eastern conference"],
       "competitions": [
-        {
-          "id": "nba",
-          "label": "NBA",
-          "global_channels": [
-            {"channel_id": "UCWJ2lWNubArHWmf3FIHbfcQ", "handle": "@NBA", "note": "Official NBA channel — game recaps and top plays within hours of every game."}
-          ],
-          "country_channels": {}
-        }
-      ]
-    },
-    {
-      "id": "nfl",
-      "label": "NFL",
-      "icon": "football.fill",
-      "competitions": [
-        {
-          "id": "nfl",
-          "label": "NFL",
-          "global_channels": [
-            {"channel_id": "UCDVYQ4Zhbm3S2dlz7P1GBDg", "handle": "@NFL", "note": "Official NFL channel — every game recap and Top 100 series, same day."}
-          ],
-          "country_channels": {}
-        }
-      ]
-    },
-    {
-      "id": "nbl",
-      "label": "NBL",
-      "icon": "basketball.fill",
-      "competitions": [
-        {
-          "id": "nbl",
-          "label": "NBL",
-          "global_channels": [
-            {"channel_id": "UCQOt5-Mc5m03JCO_W9SWySA", "handle": "@NBL", "note": "Official National Basketball League (Australia) channel — per-game highlights during NBL season."}
-          ],
-          "country_channels": {}
-        }
+        {"id": "nba", "label": "NBA", "keywords": ["nba"]}
       ]
     },
     {
       "id": "nhl",
       "label": "NHL",
       "icon": "hockey.puck.fill",
+      "keywords": ["nhl", "stanley cup"],
       "competitions": [
-        {
-          "id": "nhl",
-          "label": "NHL",
-          "global_channels": [
-            {"channel_id": "UCqFMzb-4AUf6WAIbl132QKA", "handle": "@NHL", "note": "Official NHL channel — game recaps and top moments."}
-          ],
-          "country_channels": {}
-        }
+        {"id": "nhl", "label": "NHL", "keywords": ["nhl"]}
+      ]
+    },
+    {
+      "id": "nbl",
+      "label": "NBL",
+      "icon": "basketball.fill",
+      "keywords": ["nbl", "nbl1"],
+      "competitions": [
+        {"id": "nbl", "label": "NBL", "keywords": ["nbl"]}
+      ]
+    },
+    {
+      "id": "afl",
+      "label": "AFL",
+      "icon": "football.fill",
+      "keywords": ["afl", "aussie rules", "australian football league"],
+      "competitions": [
+        {"id": "afl", "label": "AFL", "keywords": ["afl"]}
+      ]
+    },
+    {
+      "id": "nrl",
+      "label": "NRL",
+      "icon": "football.fill",
+      "keywords": ["nrl", "rugby league", "rabbitohs", "broncos", "panthers", "roosters", "storm", "eels", "bulldogs", "sea eagles", "raiders", "knights"],
+      "competitions": [
+        {"id": "nrl", "label": "NRL", "keywords": ["nrl"]}
+      ]
+    },
+    {
+      "id": "f1",
+      "label": "Formula 1",
+      "icon": "flag.checkered",
+      "keywords": ["formula 1", "f1", "grand prix"],
+      "competitions": [
+        {"id": "f1", "label": "Formula 1", "keywords": ["grand prix", "formula 1"]}
       ]
     },
     {
       "id": "tennis",
       "label": "Tennis",
-      "icon": "tennis.racket",
+      "icon": "figure.tennis",
+      "keywords": ["wimbledon", "us open", "australian open", "roland garros", "french open", "atp tour", "wta tour"],
       "competitions": [
-        {
-          "id": "ao",
-          "label": "Australian Open",
-          "global_channels": [
-            {"channel_id": "UCeTKJSW1NTAkf27nNmjWt5A", "handle": "@australianopen", "note": "Official AO channel — daily reels, full-match replays, and year-round content."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "wimbledon",
-          "label": "Wimbledon",
-          "global_channels": [
-            {"channel_id": "UCNa8NxMgSm7m4Ii9d4QGk1Q", "handle": "@Wimbledon", "note": "Official Wimbledon channel — daily highlights and full-match replays."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "us_open",
-          "label": "US Open",
-          "global_channels": [
-            {"channel_id": "UCXbboag48Qlr78zzz6SkzkQ", "handle": "@usopen", "note": "Official US Open Tennis channel — daily highlights during tournament."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "rg",
-          "label": "Roland-Garros",
-          "global_channels": [
-            {"channel_id": "UCYxYg9pHIMTIN1ZBKBYx_DA", "handle": "@rolandgarros", "note": "Official Roland-Garros channel — daily highlights during the French Open."}
-          ],
-          "country_channels": {}
-        }
+        {"id": "ao", "label": "Australian Open", "keywords": ["australian open"]},
+        {"id": "rg", "label": "Roland Garros", "keywords": ["roland garros", "french open"]},
+        {"id": "wimbledon", "label": "Wimbledon", "keywords": ["wimbledon"]},
+        {"id": "us_open", "label": "US Open", "keywords": ["us open"]}
       ]
     },
     {
       "id": "cricket",
       "label": "Cricket",
       "icon": "figure.cricket",
+      "keywords": ["cricket", "test match", " odi ", " t20 ", "icc", "the ashes", "ipl ", "big bash", "bbl"],
       "competitions": [
-        {
-          "id": "icc",
-          "label": "ICC Cricket (international)",
-          "global_channels": [
-            {"channel_id": "UCt2JXOLNxqry7B_4rRZME3Q", "handle": "@ICC", "note": "Official ICC channel — international cricket events highlights in multiple languages."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "england_cricket",
-          "label": "England Cricket",
-          "global_channels": [
-            {"channel_id": "UCz1D0n02BR3t51KuBOPmfTQ", "handle": "@officialenglandcricket", "note": "Official ECB channel — Test, T20I, ODI highlights for England men and women."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "cricket_au",
-          "label": "Australia Cricket",
-          "global_channels": [
-            {"channel_id": "UCkBY0aHJP9BwjZLDYxAQrKg", "handle": "@cricketcomau", "note": "Cricket Australia — men's and women's national teams and domestic content."}
-          ],
-          "country_channels": {}
-        },
-        {
-          "id": "nz_cricket",
-          "label": "New Zealand Cricket",
-          "global_channels": [
-            {"channel_id": "UCuKowzPg2-A0FcmyPa3yWug", "handle": "@NZCricket", "note": "Official NZ Cricket — Black Caps and White Ferns Test, ODI, T20I highlights."}
-          ],
-          "country_channels": {}
-        }
+        {"id": "test", "label": "Test Cricket", "keywords": ["test match", "the ashes"]},
+        {"id": "odi", "label": "ODI Cricket", "keywords": [" odi "]},
+        {"id": "t20i", "label": "T20 Cricket", "keywords": [" t20 ", "t20i"]}
       ]
     },
     {
-      "id": "f1",
-      "label": "F1",
-      "icon": "flag.checkered",
+      "id": "soccer",
+      "label": "Soccer",
+      "icon": "soccerball",
+      "keywords": ["premier league", "epl ", " epl", "la liga", "laliga", "bundesliga", "ligue 1", "serie a", "champions league", "europa league", "uefa", "fifa", "world cup", "ucl ", " ucl", "uel ", " uel", "fa cup", "carabao cup", "league cup", "soccer", "match highlights"],
       "competitions": [
-        {
-          "id": "f1",
-          "label": "Formula 1",
-          "global_channels": [
-            {"channel_id": "UCB_qr75-ydFVKSF9Dmo6izg", "handle": "@FORMULA1", "note": "Official Formula 1 channel — race, qualifying, sprint highlights within hours of each GP."}
-          ],
-          "country_channels": {
-            "UK": [{"channel_id": "UC3kxJQ9RfaS5CKeYbbFMi4Q", "handle": "@SkySportsF1", "note": "Sky Sports F1 — UK F1 rights-holder; race highlights and Ted's Notebook."}]
-          }
-        }
-      ]
-    },
-    {
-      "id": "nrl",
-      "label": "NRL",
-      "icon": "shield.fill",
-      "competitions": [
-        {
-          "id": "nrl",
-          "label": "NRL",
-          "global_channels": [
-            {"channel_id": "UC33-OkQ6VCYk8xtml8Pk4-g", "handle": "@NRL", "note": "Official NRL channel — extended match highlights within hours of each game."}
-          ],
-          "country_channels": {
-            "AU": [{"channel_id": "UCBVrn_SGKAOv3yKPi4Oc3-A", "handle": "@NRLonNine", "note": "Nine Network's NRL channel — FTA rights-holder, supplementary highlights."}]
-          }
-        }
-      ]
-    },
-    {
-      "id": "afl",
-      "label": "AFL",
-      "icon": "sportscourt.fill",
-      "competitions": [
-        {
-          "id": "afl",
-          "label": "AFL",
-          "global_channels": [
-            {"channel_id": "UCxAeHdLDAatFV_vt95MSO-g", "handle": "@AFL", "note": "Official AFL channel — full match highlights posted hours after games."}
-          ],
-          "country_channels": {}
-        }
+        {"id": "epl", "label": "Premier League", "keywords": ["premier league", "epl "]},
+        {"id": "laliga", "label": "La Liga", "keywords": ["la liga", "laliga"]},
+        {"id": "bundesliga", "label": "Bundesliga", "keywords": ["bundesliga"]},
+        {"id": "ligue1", "label": "Ligue 1", "keywords": ["ligue 1"]},
+        {"id": "seriea", "label": "Serie A", "keywords": ["serie a"]},
+        {"id": "ucl", "label": "Champions League", "keywords": ["champions league", "ucl"]},
+        {"id": "uel", "label": "Europa League", "keywords": ["europa league", "uel"]},
+        {"id": "fac", "label": "FA Cup", "keywords": ["fa cup"]},
+        {"id": "efl", "label": "League Cup", "keywords": ["carabao cup", "league cup", "efl cup"]},
+        {"id": "fifa_wc", "label": "FIFA World Cup", "keywords": ["world cup"]}
       ]
     }
+  ],
+
+  "countries": {
+    "AU": [
+      {"channel_id": "UCFpghkGxSWMSPwfHUM8C5gg", "name": "Fox Footy", "note": "Fox Sports AFL channel", "sport_hints": ["afl"]},
+      {"channel_id": "UCV5HXUHFR-yuSb7qDJ5_80g", "name": "Wide World of Sports", "note": "Nine Network sports brand", "sport_hints": []},
+      {"channel_id": "UCuxZ6rHAg-OSzHAvENMYjHg", "name": "Seven Sport", "note": "Seven Network sports", "sport_hints": []},
+      {"channel_id": "UCd6-Pi3ehHF3foGjhcEveZg", "name": "10 Sport", "note": "Channel 10 sport", "sport_hints": []},
+      {"channel_id": "UCNAMd7uZy8Y1ArZ58ZwXAjw", "name": "Stan Sport", "note": "Stan Sport official", "sport_hints": []},
+      {"channel_id": "UC3tSopytOm7A5cJOUMzbi4A", "name": "Kayo Sports", "note": "Foxtel streaming sports", "sport_hints": []},
+      {"channel_id": "UCBi2mrWuNuyYy4gbM6fU18Q", "name": "ABC News", "note": "ABC sports bulletins", "sport_hints": []},
+      {"channel_id": "UCxnGkmpVJSBpIOeUwSF9fjw", "name": "SBS Australia", "note": "SBS sports + The World Game", "sport_hints": ["soccer"]},
+      {"channel_id": "UCuuTCooIMbBFHNbPcSS70uw", "name": "SBS News", "sport_hints": []},
+      {"channel_id": "UCI3BB9bUx9xE2ZoFYUNROyw", "name": "Cricket Australia", "note": "Official Cricket Australia", "sport_hints": ["cricket"]}
+    ],
+    "UK": [
+      {"channel_id": "UCW6-BQWFA70Dyyc7ZpZ9Xlg", "name": "BBC Sport", "sport_hints": []},
+      {"channel_id": "UCli0KmmXMDjcgqvsheHfv-Q", "name": "BBC Football", "sport_hints": ["soccer"]},
+      {"channel_id": "UCCj956IF62FbT7Gouszaj9w", "name": "BBC", "sport_hints": []},
+      {"channel_id": "UC16niRr50-MSBwiO3YDb3RA", "name": "BBC News", "sport_hints": []},
+      {"channel_id": "UCoEqHpK5VNVEBRvwL0EW8Gw", "name": "ITV", "sport_hints": []},
+      {"channel_id": "UCBzDz6beXDfMtfxQdEutD_w", "name": "ITV Sport", "sport_hints": []},
+      {"channel_id": "UCiZ47iCEOmqsyZU_6XP9ekg", "name": "Channel 4", "sport_hints": []},
+      {"channel_id": "UC1XSYJz0tzqNONTlIoRpqog", "name": "Channel 5", "sport_hints": []},
+      {"channel_id": "UCTU_wC79Dgi9rh4e9-baTqA", "name": "Sky Sports", "sport_hints": []},
+      {"channel_id": "UCZ7wY7MRDSygp63HIEfdQZA", "name": "Sky Sports Football", "sport_hints": ["soccer"]},
+      {"channel_id": "UC3kxJQ9RfaS5CKeYbbFMi4Q", "name": "Sky Sports F1", "sport_hints": ["f1"]},
+      {"channel_id": "UCkd4takjjF1EGD1TKIK2QiA", "name": "Sky Sports Cricket", "sport_hints": ["cricket"]},
+      {"channel_id": "UCa98aY7eenHS_YhehF-vuEQ", "name": "Sky Sports Golf", "sport_hints": []},
+      {"channel_id": "UC7HEj8odlxsmyyzmBFK6Znw", "name": "TNT Sports", "sport_hints": []},
+      {"channel_id": "UCWw6scNyopJ0yjMu1SyOEyw", "name": "talkSPORT", "sport_hints": ["soccer"]},
+      {"channel_id": "UCk8gzAOGprcGAFMWGzZ2zQw", "name": "ESPN UK", "sport_hints": []}
+    ],
+    "US": [
+      {"channel_id": "UCiWLfSweyRNmLpgEHekhoAg", "name": "ESPN", "sport_hints": []},
+      {"channel_id": "UCja8sZ2T4ylIqjggA1Zuukg", "name": "CBS Sports", "sport_hints": []},
+      {"channel_id": "UCqZQlzSHbVJrwrn5XvzrzcA", "name": "NBC Sports", "sport_hints": []},
+      {"channel_id": "UCwNqHDsnBCKT-olwJwIFyfg", "name": "FOX Sports", "sport_hints": []},
+      {"channel_id": "UCpAOOYpwZ3yAi4EtTGPjeag", "name": "Peacock Sports", "sport_hints": []},
+      {"channel_id": "UCDitdIjOjS9Myza9I21IqzQ", "name": "Tennis Channel", "sport_hints": ["tennis"]},
+      {"channel_id": "UC5igJFdBQVqg7hXFI7075OQ", "name": "Golf Channel", "sport_hints": []}
+    ],
+    "IE": [
+      {"channel_id": "UCGnlgHCdAsCNeAdNRTbS4hg", "name": "RTÉ", "sport_hints": []},
+      {"channel_id": "UCH_7bF90ySEVfWLXtn9HlWA", "name": "RTÉ Sport", "sport_hints": []},
+      {"channel_id": "UC8urSFTmQDxaPDEIZ2Fd63Q", "name": "RTÉ News", "sport_hints": []},
+      {"channel_id": "UC_xS76ZZEkVk1Lx-H23J01w", "name": "TG4", "sport_hints": []},
+      {"channel_id": "UCs0GMabIjRfkbNiv1v_X_eA", "name": "GAA", "note": "Gaelic Athletic Association", "sport_hints": []},
+      {"channel_id": "UC5ECgn-R-rJFHBVHuzkpp6w", "name": "Today FM", "sport_hints": []}
+    ],
+    "NZ": [
+      {"channel_id": "UC8f1U3h2TAcKOktgonnL0Yw", "name": "Sky Sport NZ", "sport_hints": []},
+      {"channel_id": "UCxPAYgO8OpFev3PUTKbsxNw", "name": "1News", "sport_hints": []},
+      {"channel_id": "UC4QlHw3i1znBQ4-uynuVfvg", "name": "1News (alt)", "sport_hints": []},
+      {"channel_id": "UCNw2VTHgHM5oT844PVBpjZA", "name": "ThreeNews", "sport_hints": []},
+      {"channel_id": "UCBTMdHIU_I0KLPDmWCqTbYg", "name": "Three Now NZ", "sport_hints": []}
+    ],
+    "ZA": [
+      {"channel_id": "UCgTZ0uSy3rQRWl9eJM8z4pQ", "name": "SuperSport", "sport_hints": []},
+      {"channel_id": "UC7Rk9DaEfbn42pfVdz9bwiA", "name": "SuperSport Rugby", "sport_hints": []},
+      {"channel_id": "UCGx26yfN8hc1n_wPZA8Seqw", "name": "SuperSport Football", "sport_hints": ["soccer"]},
+      {"channel_id": "UCY7LYupm64zUx2l29VSyYZg", "name": "SABC 1", "sport_hints": []},
+      {"channel_id": "UCAVmHjQH2rGQ58MGEPlLSWA", "name": "SABC 2", "sport_hints": []},
+      {"channel_id": "UCw0I1R1ASg7Q2m5ds8I83Eg", "name": "SABC 3", "sport_hints": []},
+      {"channel_id": "UC7PC-8rYnfJguaqvLlnnTXA", "name": "SABC Sport", "sport_hints": []},
+      {"channel_id": "UC8KUq_3hcN7p7rMFU1nFm1g", "name": "eNCA", "sport_hints": []},
+      {"channel_id": "UCbD8EppRX3ZwJSou-TVo90A", "name": "M-Net", "sport_hints": []}
+    ]
+  },
+
+  "global_channels": [
+    {"channel_id": "UCG5qGWdu8nIRZqJ_GgDwQ-w", "name": "Premier League", "note": "Official Premier League", "sport_hints": ["soccer"]},
+    {"channel_id": "UCkgm4b5n3QsMUgB9FjA8S2w", "name": "EFL", "note": "English Football League", "sport_hints": ["soccer"]},
+    {"channel_id": "UCyGa1YEx9ST66rYrJTGIKOw", "name": "UEFA", "sport_hints": ["soccer"]},
+    {"channel_id": "UCpcTrCXblq78GZrTUTLWeBw", "name": "FIFA", "sport_hints": ["soccer"]},
+    {"channel_id": "UCLcSuj4B8YyUVJdVDeozFQg", "name": "Champions League", "sport_hints": ["soccer"]},
+    {"channel_id": "UC3CXMy61P5WQMLiDDJn8nNA", "name": "Europa League", "sport_hints": ["soccer"]},
+    {"channel_id": "UCDVYQ4Zhbm3S2dlz7P1GBDg", "name": "NFL", "note": "Official NFL", "sport_hints": ["nfl"]},
+    {"channel_id": "UCWJ2lWNubArHWmf3FIHbfcQ", "name": "NBA", "note": "Official NBA", "sport_hints": ["nba"]},
+    {"channel_id": "UCqFMzb-4AUf6WAIbl132QKA", "name": "NHL", "note": "Official NHL", "sport_hints": ["nhl"]},
+    {"channel_id": "UCoLrcjPV5PbUrUyXq5mjc_A", "name": "MLB", "sport_hints": []},
+    {"channel_id": "UCSZbXT5TLLW_i-5W8FZpFsg", "name": "MLS", "sport_hints": ["soccer"]},
+    {"channel_id": "UCxAeHdLDAatFV_vt95MSO-g", "name": "AFL", "note": "Official AFL", "sport_hints": ["afl"]},
+    {"channel_id": "UCh7q-K5RxmNnuMwspqb-QCA", "name": "NRL", "note": "Official NRL", "sport_hints": ["nrl"]},
+    {"channel_id": "UC0R3-zRpeIVUnavcRTPWzZA", "name": "Formula 1", "note": "Official F1", "sport_hints": ["f1"]},
+    {"channel_id": "UCfEG8YDh4ZF0LQDxx7Va1mw", "name": "ATP Tour", "sport_hints": ["tennis"]},
+    {"channel_id": "UC2bFPWB0roC_yI02j_s4TQw", "name": "WTA", "sport_hints": ["tennis"]},
+    {"channel_id": "UCt2JXOLNxqry7B_4rRZME3Q", "name": "ICC", "note": "International Cricket Council", "sport_hints": ["cricket"]},
+    {"channel_id": "UCvgfXK4nTYKudb0rFR6noLA", "name": "UFC", "sport_hints": []}
   ]
 }

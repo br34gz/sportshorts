@@ -8,24 +8,24 @@ struct BrowseView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
-                    ForEach(groupedSections, id: \.competition.id) { section in
+                    ForEach(followedSports) { sport in
+                        let items = session.feed.filter { $0.sportId == sport.id }
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Image(systemName: section.sport.icon).font(.caption.weight(.semibold)).foregroundStyle(.tint)
-                                Text(section.competition.label).font(.title3.weight(.bold))
-                                Text(section.sport.label).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                                Image(systemName: sport.icon).font(.caption.weight(.semibold)).foregroundStyle(.tint)
+                                Text(sport.label).font(.title3.weight(.bold))
+                                Text("\(items.count) clips").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                             }
                             .padding(.horizontal, 16)
 
-                            let items = session.feed.filter { $0.competitionId == section.competition.id }
                             if items.isEmpty {
-                                Text("No recent highlights for \(section.competition.label).")
+                                Text("No recent highlights for \(sport.label).")
                                     .font(.subheadline).foregroundStyle(.secondary)
                                     .padding(.horizontal, 16)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 12) {
-                                        ForEach(items.prefix(8)) { item in
+                                        ForEach(items.prefix(12)) { item in
                                             HorizontalVideoCard(item: item) { playing = item }
                                                 .frame(width: 260)
                                         }
@@ -44,8 +44,8 @@ struct BrowseView: View {
         }
     }
 
-    private var groupedSections: [(sport: Sport, competition: Competition)] {
-        session.followedCompetitions
+    private var followedSports: [Sport] {
+        session.catalog.sports.filter { session.followedSportIds.contains($0.id) }
     }
 }
 

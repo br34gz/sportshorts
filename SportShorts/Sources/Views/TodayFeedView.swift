@@ -49,7 +49,11 @@ struct TodayFeedView: View {
         session.isLoadingFeed = true
         defer { session.isLoadingFeed = false }
         do {
-            session.feed = try await FeedFetcher.fetch(queries: session.activeQueries)
+            session.feed = try await FeedFetcher.fetch(
+                channels: session.activeChannels,
+                followedSports: session.followedSportIds,
+                catalog: session.catalog
+            )
             session.lastFeedError = nil
         } catch {
             session.lastFeedError = error.localizedDescription

@@ -16,7 +16,7 @@ struct OnboardingFlow: View {
                 })
             case .sports:
                 SportsStep(onContinue: { selected in
-                    session.followedCompetitionIds = selected
+                    session.followedSportIds = selected
                 })
             }
         }
@@ -98,14 +98,13 @@ private struct CountryRow: View {
     }
 }
 
-// MARK: - Sports picker
+// MARK: - Sports picker (sport-level only; broadcasters chosen by country)
 
 private struct SportsStep: View {
     @Environment(AppSession.self) private var session
     let onContinue: (Set<String>) -> Void
     @State private var picked = Set<String>()
     @State private var loading = true
-    @State private var expanded = Set<String>()    // sport ids currently expanded
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -113,7 +112,7 @@ private struct SportsStep: View {
             Text("Pick your sports.")
                 .font(.system(size: 36, weight: .bold, design: .rounded))
                 .padding(.horizontal, 24)
-            Text("Same list everywhere. We'll match each sport to the right broadcaster for \(session.country?.name ?? "your country").")
+            Text("We'll pull highlights from every major broadcaster in \(session.country?.name ?? "your country"), then filter to just the sports you've picked.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 24)
@@ -125,17 +124,12 @@ private struct SportsStep: View {
                 ScrollView {
                     VStack(spacing: 10) {
                         ForEach(session.catalog.sports) { sport in
-                            SportRow(
+                            SportToggleRow(
                                 sport: sport,
-                                expanded: expanded.contains(sport.id),
-                                picked: picked,
-                                toggleExpanded: {
-                                    if expanded.contains(sport.id) { expanded.remove(sport.id) }
-                                    else { expanded.insert(sport.id) }
-                                },
-                                toggleCompetition: { compId in
-                                    if picked.contains(compId) { picked.remove(compId) }
-                                    else { picked.insert(compId) }
+                                isOn: picked.contains(sport.id),
+                                toggle: {
+                                    if picked.contains(sport.id) { picked.remove(sport.id) }
+                                    else { picked.insert(sport.id) }
                                 }
                             )
                         }
@@ -165,47 +159,24 @@ private struct SportsStep: View {
     }
 }
 
-private struct SportRow: View {
+private struct SportToggleRow: View {
     let sport: Sport
-    let expanded: Bool
-    let picked: Set<String>
-    let toggleExpanded: () -> Void
-    let toggleCompetition: (String) -> Void
+    let isOn: Bool
+    let toggle: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            Button(action: rowTap) {
-                HStack(spacing: 14) {
-                    Image(systemName: sport.icon).font(.title3).foregroundStyle(.tint).frame(width: 28)
-                    Text(sport.label).font(.headline).foregroundStyle(.primary)
-                    Spacer()
-                    if isSingleCompetition {
-                        // Just a checkmark, no chevron.
-                        Image(systemName: picked.contains(sport.competitions[0].id) ? "checkmark.circle.fill" : "circle")
-                            .font(.title3)
-                            .foregroundStyle(picked.contains(sport.competitions[0].id) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                    } else {
-                        let pickedCount = sport.competitions.filter { picked.contains($0.id) }.count
-                        if pickedCount > 0 {
-                            Text("\(pickedCount)").font(.caption.weight(.semibold))
-                                .padding(.horizontal, 8).padding(.vertical, 3)
-                                .background(Capsule().fill(Color.accentColor.opacity(0.25)))
-                                .foregroundStyle(.tint)
-                        }
-                        Image(systemName: "chevron.down")
-                            .font(.caption)
-                            .rotationEffect(.degrees(expanded ? 180 : 0))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.horizontal, 18).padding(.vertical, 14)
+        Button(action: toggle) {
+            HStack(spacing: 14) {
+                Image(systemName: sport.icon).font(.title3).foregroundStyle(.tint).frame(width: 28)
+                Text(sport.label).font(.headline).foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                    .font(.title3)
+                    .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
             }
-            .buttonStyle(.plain)
-
-            if expanded && !isSingleCompetition {
-                expandedBody
-            }
+            .padding(.horizontal, 18).padding(.vertical, 14)
         }
+        .buttonStyle(.plain)
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(.ultraThinMaterial)
@@ -214,61 +185,5 @@ private struct SportRow: View {
                         .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
                 }
         }
-        .animation(.easeInOut(duration: 0.18), value: expanded)
-    }
-
-    private var isSingleCompetition: Bool { sport.competitions.count == 1 }
-
-    private func rowTap() {
-        if isSingleCompetition {
-            // Single-comp sports: toggle the one competition directly.
-            toggleCompetition(sport.competitions[0].id)
-        } else {
-            toggleExpanded()
-        }
-    }
-
-    /// Groups competitions by their `group` field while preserving the input
-    /// order. Competitions without a group fall under "Other".
-    private var groupedCompetitions: [(group: String?, items: [Competition])] {
-        var out: [(String?, [Competition])] = []
-        for c in sport.competitions {
-            if let last = out.last, last.0 == c.group {
-                out[out.count - 1].1.append(c)
-            } else {
-                out.append((c.group, [c]))
-            }
-        }
-        return out
-    }
-
-    @ViewBuilder
-    private var expandedBody: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            let groups = groupedCompetitions
-            let anyGrouped = groups.contains(where: { $0.group != nil })
-            ForEach(Array(groups.enumerated()), id: \.offset) { _, section in
-                if anyGrouped, let group = section.group {
-                    Text(group)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 18)
-                        .padding(.top, 8)
-                }
-                ForEach(section.items) { comp in
-                    Button { toggleCompetition(comp.id) } label: {
-                        HStack {
-                            Text(comp.label).font(.subheadline).foregroundStyle(.primary)
-                            Spacer()
-                            Image(systemName: picked.contains(comp.id) ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(picked.contains(comp.id) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                        }
-                        .padding(.horizontal, 18).padding(.vertical, 10)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .padding(.bottom, 8)
     }
 }

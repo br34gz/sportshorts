@@ -1,10 +1,9 @@
 import Foundation
 
-/// Loads the sport-centric channel catalog from (in priority order):
-/// 1. Remote: raw.githubusercontent.com/sb86-dev/sportshorts/main/channels.json
-///    (Only works if the repo is public; private repos 404 anonymous fetches.)
-/// 2. Local on-disk cache (~24h TTL).
-/// 3. Bundled fallback shipped with the app.
+/// Loads the country-keyed channel catalog from (in priority order):
+/// 1. Remote: raw.githubusercontent.com (only works if the repo is public)
+/// 2. Local on-disk cache (~24h TTL)
+/// 3. Bundled fallback shipped with the app
 enum ChannelCatalog {
 
     static let remoteURL = URL(string: "https://raw.githubusercontent.com/sb86-dev/sportshorts/main/channels.json")!
@@ -25,11 +24,11 @@ enum ChannelCatalog {
         if let cached = loadFromCache(), !isEmpty(cached) {
             return cached
         }
-        return loadFromBundle() ?? Catalog(sports: [])
+        return loadFromBundle() ?? Catalog.empty
     }
 
     private static func isEmpty(_ catalog: Catalog) -> Bool {
-        catalog.sports.allSatisfy { $0.competitions.isEmpty }
+        catalog.sports.isEmpty && catalog.countries.isEmpty && catalog.globalChannels.isEmpty
     }
 
     private static func fetchRemote() async -> Catalog? {

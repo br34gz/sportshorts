@@ -26,7 +26,7 @@ struct VideoCard: View {
                         Image(systemName: item.sportIcon)
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white)
-                        Text(item.competitionLabel)
+                        Text(item.competitionLabel ?? item.sportLabel)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
