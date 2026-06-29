@@ -108,6 +108,7 @@
 
   "countries": {
     "AU": [
+      {"channel_id": "UCn6UMS98Ox-B3jkSWlweJ2w", "name": "SBS Sport", "note": "SBS's dedicated sport channel", "sport_hints": []},
       {"channel_id": "UCFpghkGxSWMSPwfHUM8C5gg", "name": "Fox Footy", "note": "Fox Sports AFL channel", "sport_hints": ["afl"]},
       {"channel_id": "UCV5HXUHFR-yuSb7qDJ5_80g", "name": "Wide World of Sports", "note": "Nine Network sports brand", "sport_hints": []},
       {"channel_id": "UCuxZ6rHAg-OSzHAvENMYjHg", "name": "Seven Sport", "note": "Seven Network sports", "sport_hints": []},

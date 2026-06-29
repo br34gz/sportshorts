@@ -100,10 +100,16 @@ private struct AddChannelSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("YouTube URL or @handle", text: $input, axis: .vertical)
+                    TextField("YouTube URL or @handle", text: $input)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .lineLimit(2)
+                        .keyboardType(.URL)
+                        .submitLabel(.go)
+                        .onSubmit {
+                            if !input.trimmingCharacters(in: .whitespaces).isEmpty {
+                                resolveAndAdd()
+                            }
+                        }
                 } footer: {
                     Text("Paste any YouTube channel link — `youtube.com/channel/UC…`, `youtube.com/@handle`, or just `@handle`.")
                 }

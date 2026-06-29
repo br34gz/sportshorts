@@ -21,7 +21,18 @@ enum ChannelResolver {
 
     static func resolve(input raw: String) async throws -> (channelId: String, name: String) {
         let pageURL = try pageURL(from: raw)
-        let (data, response) = try await URLSession.shared.data(from: pageURL)
+        var req = URLRequest(url: pageURL)
+        // YouTube serves a stripped page without the externalId field to
+        // non-browser User-Agents. Send a desktop Safari UA so we get the
+        // normal channel page with the embedded data block.
+        req.setValue(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+            forHTTPHeaderField: "User-Agent"
+        )
+        req.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
+        req.timeoutInterval = 12
+
+        let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse else { throw ResolveError.network("Empty response") }
         guard http.statusCode == 200, let html = String(data: data, encoding: .utf8) else {
             throw ResolveError.network("HTTP \(http.statusCode) loading channel page")
