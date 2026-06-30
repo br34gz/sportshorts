@@ -486,6 +486,12 @@ enum MatchStatsService {
     }
 
     private static func teamName(_ competitor: [String: Any]) -> String {
+        // Tennis events carry the player under `athlete`, not `team`.
+        if let athlete = competitor["athlete"] as? [String: Any] {
+            if let name = athlete["displayName"] as? String { return name }
+            if let name = athlete["fullName"] as? String { return name }
+            if let last = athlete["lastName"] as? String { return last }
+        }
         let team = competitor["team"] as? [String: Any]
         return (team?["displayName"] as? String)
             ?? (team?["name"] as? String)
@@ -494,6 +500,10 @@ enum MatchStatsService {
     }
 
     private static func teamAbbr(_ competitor: [String: Any]) -> String {
+        if let athlete = competitor["athlete"] as? [String: Any] {
+            if let abbr = athlete["shortName"] as? String, !abbr.isEmpty { return abbr }
+            if let last = athlete["lastName"] as? String, !last.isEmpty { return String(last.prefix(3)).uppercased() }
+        }
         let team = competitor["team"] as? [String: Any]
         return (team?["abbreviation"] as? String) ?? ""
     }

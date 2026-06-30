@@ -30,7 +30,12 @@ struct PlayerSheet: View {
             }
             .aspectRatio(16/9, contentMode: .fit)
 
-            ChannelFollowRow(channelId: item.channelId, fallbackName: item.channelTitle)
+            ChannelFollowRow(
+                channelId: item.channelId,
+                channelTitle: item.channelTitle,
+                videoURL: item.watchURL,
+                fallbackName: item.channelTitle
+            )
 
             if let stats = matchStats {
                 StatsPanel(stats: stats, revealed: $revealStats)
@@ -59,27 +64,46 @@ struct PlayerSheet: View {
     }
 
     private var embedFailedView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Image(systemName: "rectangle.on.rectangle.slash")
-                .font(.system(size: 36))
+                .font(.system(size: 32))
                 .foregroundStyle(.white.opacity(0.55))
             Text("Publisher disabled in-app playback")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.85))
                 .multilineTextAlignment(.center)
-            Button {
-                UIApplication.shared.open(item.watchURL)
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "play.fill")
-                    Text("Watch on YouTube")
+            HStack(spacing: 8) {
+                Button {
+                    UIApplication.shared.open(item.watchURL)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "play.fill")
+                        Text("Open in YouTube")
+                    }
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                 }
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
+                .buttonStyle(.bordered)
+                .tint(.white)
+
+                if session.channel(byId: item.channelId) != nil,
+                   session.isFollowing(channelId: item.channelId) {
+                    Button {
+                        session.setFollowing(false, forChannelId: item.channelId)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "eye.slash")
+                            Text("Hide channel")
+                        }
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.white)
+                }
             }
-            .buttonStyle(.bordered)
-            .tint(.white)
         }
     }
 }
@@ -258,13 +282,15 @@ struct IFramePlayer: UIViewRepresentable {
 /// their feed without leaving the player.
 private struct ChannelFollowRow: View {
     let channelId: String
+    let channelTitle: String
+    let videoURL: URL
     let fallbackName: String
     @Environment(AppSession.self) private var session
 
     var body: some View {
         let ch = session.channel(byId: channelId)
-        let visible = session.isFollowing(channelId: channelId)  // misnomer in the API; means "not hidden"
-        let canToggle = ch != nil
+        let visible = session.isFollowing(channelId: channelId)
+        let canHide = ch != nil
 
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
@@ -278,25 +304,34 @@ private struct ChannelFollowRow: View {
                     .lineLimit(1)
             }
             Spacer()
-            Button {
-                guard canToggle else { return }
-                session.setFollowing(!visible, forChannelId: channelId)
+            Menu {
+                Button {
+                    UIApplication.shared.open(videoURL)
+                } label: {
+                    Label("Open in YouTube", systemImage: "arrow.up.right.square")
+                }
+                if canHide {
+                    if visible {
+                        Button(role: .destructive) {
+                            session.setFollowing(false, forChannelId: channelId)
+                        } label: {
+                            Label("Hide \(ch?.displayHandle ?? "channel")", systemImage: "eye.slash")
+                        }
+                    } else {
+                        Button {
+                            session.setFollowing(true, forChannelId: channelId)
+                        } label: {
+                            Label("Unhide \(ch?.displayHandle ?? "channel")", systemImage: "eye")
+                        }
+                    }
+                }
             } label: {
-                Text(visible ? "Hide" : "Unhide")
-                    .font(.caption.weight(.semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(
-                        Capsule().fill(visible ? Color.white.opacity(0.12) : Color.accentColor)
-                    )
-                    .foregroundStyle(visible ? AnyShapeStyle(.white) : AnyShapeStyle(.black))
-                    .overlay(
-                        Capsule().stroke(Color.white.opacity(visible ? 0.25 : 0), lineWidth: 0.5)
-                    )
+                Image(systemName: "ellipsis")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 32)
+                    .background(Capsule().fill(Color.white.opacity(0.12)))
             }
-            .buttonStyle(.plain)
-            .disabled(!canToggle)
-            .opacity(canToggle ? 1 : 0.4)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -445,24 +480,39 @@ struct StatsPanel: View {
 
     private var scoreBlock: some View {
         VStack(spacing: 6) {
-            HStack(alignment: .center, spacing: 8) {
+            HStack(alignment: .center, spacing: 6) {
                 VStack(spacing: 2) {
-                    Text(stats.homeTeam).font(.subheadline.weight(.semibold)).foregroundStyle(.white).multilineTextAlignment(.center)
+                    Text(stats.homeTeam)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
                     Text(stats.homeAbbr).font(.caption2).foregroundStyle(.white.opacity(0.6))
                 }
                 .frame(maxWidth: .infinity)
 
                 VStack(spacing: 4) {
                     Text("\(stats.homeScore)  –  \(stats.awayScore)")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .font(.system(size: 30, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.4)
+                        .layoutPriority(1)
                     Text(stats.detail)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.6))
+                        .lineLimit(1)
                 }
+                .fixedSize(horizontal: false, vertical: true)
 
                 VStack(spacing: 2) {
-                    Text(stats.awayTeam).font(.subheadline.weight(.semibold)).foregroundStyle(.white).multilineTextAlignment(.center)
+                    Text(stats.awayTeam)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.7)
                     Text(stats.awayAbbr).font(.caption2).foregroundStyle(.white.opacity(0.6))
                 }
                 .frame(maxWidth: .infinity)
@@ -471,6 +521,8 @@ struct StatsPanel: View {
                 Text(lineScore)
                     .font(.subheadline.weight(.semibold).monospacedDigit())
                     .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
             }
         }
     }
