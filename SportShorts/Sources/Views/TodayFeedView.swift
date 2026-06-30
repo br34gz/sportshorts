@@ -6,6 +6,10 @@ struct TodayFeedView: View {
     @State private var filterSports: Set<String> = []
     @State private var pageSize: Int = 20
     @State private var lastRefresh: Date = .distantPast
+    /// Signature of the session config that drives what gets fetched. When it
+    /// changes (country flip, sport toggle, channel hide/unhide, spoiler
+    /// toggle) onAppear forces a refresh regardless of the 30s throttle.
+    @State private var lastConfigHash: Int = 0
 
     var body: some View {
         NavigationStack {
@@ -91,7 +95,10 @@ struct TodayFeedView: View {
                 PlayerSheet(item: item)
             }
             .onAppear {
-                Task { await refresh() }
+                let current = computeConfigHash()
+                let configChanged = (lastConfigHash != 0) && (current != lastConfigHash)
+                lastConfigHash = current
+                Task { await refresh(force: configChanged) }
             }
             .onChange(of: filterSports) { _, _ in pageSize = 20 }
         }
@@ -105,6 +112,16 @@ struct TodayFeedView: View {
         let base = session.followedFeed
         if filterSports.isEmpty { return base }
         return base.filter { filterSports.contains($0.sportId) }
+    }
+
+    private func computeConfigHash() -> Int {
+        var hasher = Hasher()
+        hasher.combine(session.country?.code)
+        hasher.combine(session.followedSportIds.sorted())
+        hasher.combine(session.followedCompetitionIds.sorted())
+        hasher.combine(session.allowSpoilers)
+        hasher.combine(session.activeChannels.map(\.channelId).sorted())
+        return hasher.finalize()
     }
 
     /// Refresh, throttled to once every 30s unless `force` is set.

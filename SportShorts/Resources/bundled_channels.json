@@ -141,11 +141,19 @@
     ],
     "US": [
       {"channel_id": "UCiWLfSweyRNmLpgEHekhoAg", "name": "ESPN", "handle": "ESPN", "sport_hints": []},
+      {"channel_id": "UC6c1z7bA__85CIWZ_jpCK-Q", "name": "ESPN FC", "handle": "ESPNFC", "sport_hints": ["soccer"]},
       {"channel_id": "UCja8sZ2T4ylIqjggA1Zuukg", "name": "CBS Sports", "handle": "CBSSports", "sport_hints": []},
+      {"channel_id": "UCFanEo-SIQ2_i_VXCcOla_Q", "name": "Golazo (CBS)", "handle": "cbsgolazo", "sport_hints": ["soccer"]},
+      {"channel_id": "UCET00YnetHT7tOpu12v8jxg", "name": "CBS Sports Golazo Network", "handle": "CBSSportsGolazo", "sport_hints": ["soccer"]},
       {"channel_id": "UCqZQlzSHbVJrwrn5XvzrzcA", "name": "NBC Sports", "handle": "NBCSports", "sport_hints": []},
       {"channel_id": "UCwNqHDsnBCKT-olwJwIFyfg", "name": "FOX Sports", "handle": "FOXSports", "sport_hints": []},
+      {"channel_id": "UCooTLkxcpnTNx6vfOovfBFA", "name": "Fox Soccer", "handle": "FoxSoccer", "sport_hints": ["soccer"]},
       {"channel_id": "UCpAOOYpwZ3yAi4EtTGPjeag", "name": "Peacock Sports", "handle": "PeacockSports", "sport_hints": []},
+      {"channel_id": "UC-tT3SB31qdsC-n6RUNtudA", "name": "Paramount+ Sports", "handle": "ParamountPlusSports", "sport_hints": []},
+      {"channel_id": "UCXOkfdEKC-MhNq3CX5rI6Bw", "name": "Prime Video Sports", "handle": "primevideosports", "sport_hints": []},
+      {"channel_id": "UCk1pcWQ5E19g0Cgp4c1eI1w", "name": "U.S. Soccer", "handle": "USSoccer", "sport_hints": ["soccer"]},
       {"channel_id": "UCDitdIjOjS9Myza9I21IqzQ", "name": "Tennis Channel", "handle": "TennisChannel", "sport_hints": ["tennis"]},
+      {"channel_id": "UCXbboag48Qlr78zzz6SkzkQ", "name": "US Open Tennis", "handle": "usopen", "sport_hints": ["tennis"]},
       {"channel_id": "UC5igJFdBQVqg7hXFI7075OQ", "name": "Golf Channel", "handle": "GolfChannel", "sport_hints": []}
     ],
     "IE": [
