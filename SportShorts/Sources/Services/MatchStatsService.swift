@@ -306,19 +306,49 @@ enum MatchStatsService {
 
     private static func fetchNRLMatch(title: String, publishedAt: Date) async -> MatchStats? {
         guard let hints = parseTeams(from: title) else { return nil }
-        // Past 15 events from the league — good enough for "within the last
-        // 7 days" matching of a highlight video that just dropped.
-        let url = URL(string: "https://www.thesportsdb.com/api/v1/json/\(theSportsDBKey)/eventspastleague.php?id=\(nrlLeagueId)")!
+
+        // Round + season from the title gives a one-call lookup (8 games).
+        // Fallback to a per-day sweep (~6 calls) when the title lacks them.
+        if let round = parseNRLRound(title: title), let season = parseNRLSeason(title: title) {
+            if let stats = await fetchNRLByRound(round: round, season: season, hints: hints) {
+                return stats
+            }
+        }
+
+        // Per-day fallback: iterate publishedAt back 6 days.
+        let cal = Calendar(identifier: .gregorian)
+        for delta in 0...6 {
+            let day = cal.date(byAdding: .day, value: -delta, to: publishedAt) ?? publishedAt
+            if let stats = await fetchNRLByDay(date: day, hints: hints) { return stats }
+        }
+        return nil
+    }
+
+    private static let nrlDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
+    private static func fetchNRLByRound(round: Int, season: Int, hints: TeamHints) async -> MatchStats? {
+        let url = URL(string: "https://www.thesportsdb.com/api/v1/json/\(theSportsDBKey)/eventsround.php?id=\(nrlLeagueId)&r=\(round)&s=\(season)")!
+        return await fetchNRLEvents(url: url, hints: hints)
+    }
+
+    private static func fetchNRLByDay(date: Date, hints: TeamHints) async -> MatchStats? {
+        let dateStr = nrlDateFormatter.string(from: date)
+        let url = URL(string: "https://www.thesportsdb.com/api/v1/json/\(theSportsDBKey)/eventsday.php?d=\(dateStr)&l=\(nrlLeagueId)")!
+        return await fetchNRLEvents(url: url, hints: hints)
+    }
+
+    private static func fetchNRLEvents(url: URL, hints: TeamHints) async -> MatchStats? {
         do {
             var req = URLRequest(url: url)
             req.timeoutInterval = 10
             let (data, _) = try await URLSession.shared.data(for: req)
             guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let events = root["events"] as? [[String: Any]] else { return nil }
-
-            let df = DateFormatter()
-            df.dateFormat = "yyyy-MM-dd"
-            df.timeZone = TimeZone(identifier: "UTC")
 
             for event in events {
                 let homeTeam = (event["strHomeTeam"] as? String) ?? ""
@@ -331,20 +361,18 @@ enum MatchStatsService {
                            || (overlaps(homeTokens, hints.awayTokens) && overlaps(awayTokens, hints.homeTokens))
                 if !matched { continue }
 
-                if let dateStr = event["dateEvent"] as? String,
-                   let eventDate = df.date(from: dateStr),
-                   abs(publishedAt.timeIntervalSince(eventDate)) > 5 * 86_400 {
-                    continue
-                }
+                // Skip events that haven't been played yet.
+                let homeScoreStr = (event["intHomeScore"] as? String) ?? ""
+                let awayScoreStr = (event["intAwayScore"] as? String) ?? ""
+                guard !homeScoreStr.isEmpty, !awayScoreStr.isEmpty,
+                      let homeScore = Int(homeScoreStr), let awayScore = Int(awayScoreStr) else { continue }
 
-                let homeScore = Int((event["intHomeScore"] as? String) ?? "0") ?? 0
-                let awayScore = Int((event["intAwayScore"] as? String) ?? "0") ?? 0
                 let round: String = {
                     if let r = event["intRound"] as? String, !r.isEmpty { return "Round \(r)" }
                     return "FT"
                 }()
                 let venue = event["strVenue"] as? String
-                let kickoff: Date? = (event["dateEvent"] as? String).flatMap(df.date(from:))
+                let kickoff: Date? = (event["dateEvent"] as? String).flatMap(nrlDateFormatter.date(from:))
 
                 return MatchStats(
                     homeTeam: homeTeam,
@@ -366,6 +394,18 @@ enum MatchStatsService {
             return nil
         }
         return nil
+    }
+
+    private static func parseNRLRound(title: String) -> Int? {
+        guard let r = title.range(of: #"\bRound\s+(\d{1,2})\b"#, options: .regularExpression) else { return nil }
+        let chunk = String(title[r])
+        guard let n = chunk.range(of: #"\d+"#, options: .regularExpression) else { return nil }
+        return Int(chunk[n])
+    }
+
+    private static func parseNRLSeason(title: String) -> Int? {
+        guard let r = title.range(of: #"\b(20\d{2})\b"#, options: .regularExpression) else { return nil }
+        return Int(String(title[r]))
     }
 
     private static func abbreviate(_ name: String) -> String {
