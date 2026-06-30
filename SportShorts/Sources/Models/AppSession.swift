@@ -88,6 +88,29 @@ final class AppSession {
         lastFeedError = nil
     }
 
+    /// Look up channel metadata by channelId, across all sources.
+    func channel(byId channelId: String) -> YouTubeChannel? {
+        let countryChannels = country.flatMap { catalog.countries[$0.code] } ?? []
+        let pool = countryChannels + catalog.globalChannels + userAddedChannels
+        return pool.first { $0.channelId == channelId }
+    }
+
+    /// Is this channel actively being followed (not hidden, and either in the
+    /// catalog or user-added)?
+    func isFollowing(channelId: String) -> Bool {
+        guard channel(byId: channelId) != nil else { return false }
+        return !hiddenChannelIds.contains(channelId)
+    }
+
+    /// Toggle follow/unfollow for a channel found by id.
+    func setFollowing(_ following: Bool, forChannelId channelId: String) {
+        if following {
+            hiddenChannelIds.remove(channelId)
+        } else {
+            hiddenChannelIds.insert(channelId)
+        }
+    }
+
     /// Every channel the feed should pull from for the current country:
     /// country broadcasters + global league channels + user-added — minus
     /// anything the user has hidden.

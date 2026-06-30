@@ -6,20 +6,20 @@ struct VideoCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
                 ZStack(alignment: .topLeading) {
                     AsyncImage(url: item.thumbnailURL) { phase in
                         switch phase {
                         case .success(let img):
                             // Preserve native aspect ratio — YouTube serves both 16:9
-                            // and 4:3, forcing one stretches the other.
+                            // and 4:3 thumbnails and forcing one stretches the other.
                             img.resizable().scaledToFit()
                         default:
                             Rectangle().fill(Color.white.opacity(0.06)).aspectRatio(16/9, contentMode: .fit)
                         }
                     }
                     .frame(maxWidth: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                     // Sport icon + competition tag — top-left overlay on thumbnail.
                     HStack(spacing: 6) {
@@ -54,7 +54,13 @@ struct VideoCard: View {
                             .foregroundStyle(.white.opacity(0.6))
                     }
                 }
-                .padding(.horizontal, 2)
+                .padding(.horizontal, 4)
+                .padding(.bottom, 4)
+            }
+            .padding(8)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.04))
             }
         }
         .buttonStyle(.plain)

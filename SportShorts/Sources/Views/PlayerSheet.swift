@@ -4,6 +4,7 @@ import WebKit
 struct PlayerSheet: View {
     let item: VideoItem
     @Environment(\.dismiss) private var dismiss
+    @Environment(AppSession.self) private var session
     @State private var skipRanges: [[Double]] = []
     @State private var skipRangesLoaded = false
     @State private var matchStats: MatchStats?
@@ -12,29 +13,28 @@ struct PlayerSheet: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geo in
-                let videoHeight = geo.size.width * 9 / 16
-                VStack(spacing: 0) {
-                    ZStack {
-                        Color.black
-                        if unplayable {
-                            embedFailedView.padding()
-                        } else {
-                            IFramePlayer(
-                                videoId: item.id,
-                                skipRanges: skipRanges,
-                                skipRangesLoaded: skipRangesLoaded,
-                                onUnplayable: { unplayable = true }
-                            )
-                        }
-                    }
-                    .frame(height: videoHeight)
-
-                    if let stats = matchStats {
-                        StatsPanel(stats: stats, revealed: $revealStats)
+            VStack(spacing: 0) {
+                ZStack {
+                    Color.black
+                    if unplayable {
+                        embedFailedView.padding()
                     } else {
-                        Color.black
+                        IFramePlayer(
+                            videoId: item.id,
+                            skipRanges: skipRanges,
+                            skipRangesLoaded: skipRangesLoaded,
+                            onUnplayable: { unplayable = true }
+                        )
                     }
+                }
+                .aspectRatio(16/9, contentMode: .fit)
+
+                ChannelFollowRow(channelId: item.channelId, fallbackName: item.channelTitle)
+
+                if let stats = matchStats {
+                    StatsPanel(stats: stats, revealed: $revealStats)
+                } else {
+                    Color.black
                 }
             }
             .background(Color.black.ignoresSafeArea())
@@ -226,6 +226,63 @@ struct IFramePlayer: UIViewRepresentable {
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard let body = message.body as? [String: Any], let type = body["type"] as? String else { return }
             if type == "unplayable" { onUnplayable() }
+        }
+    }
+}
+
+// MARK: - Channel follow row
+
+/// Sits below the video, above the stats panel. Shows the channel @handle and a
+/// one-tap toggle to follow / unfollow. Mainly there so a user who hits a
+/// YouTube geoblock or "Video unavailable" can quickly drop the source from
+/// their feed without leaving the player.
+private struct ChannelFollowRow: View {
+    let channelId: String
+    let fallbackName: String
+    @Environment(AppSession.self) private var session
+
+    var body: some View {
+        let ch = session.channel(byId: channelId)
+        let following = session.isFollowing(channelId: channelId)
+        let canToggle = ch != nil   // unknown channels can't be (un)hidden
+
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ch?.name ?? fallbackName)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text(ch?.displayHandle ?? "@" + fallbackName.lowercased().replacingOccurrences(of: " ", with: ""))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.55))
+                    .lineLimit(1)
+            }
+            Spacer()
+            Button {
+                guard canToggle else { return }
+                session.setFollowing(!following, forChannelId: channelId)
+            } label: {
+                Text(following ? "Following" : "Follow")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(
+                        Capsule().fill(following ? Color.white.opacity(0.12) : Color.accentColor)
+                    )
+                    .foregroundStyle(following ? AnyShapeStyle(.white) : AnyShapeStyle(.black))
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(following ? 0.25 : 0), lineWidth: 0.5)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(!canToggle)
+            .opacity(canToggle ? 1 : 0.4)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.black)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.5)
         }
     }
 }

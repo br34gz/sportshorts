@@ -48,7 +48,7 @@ struct TodayFeedView: View {
                             VideoCard(item: item) { playing = item }
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
-                                .listRowInsets(EdgeInsets(top: 7, leading: 16, bottom: 7, trailing: 16))
+                                .listRowInsets(EdgeInsets(top: 6, leading: 14, bottom: 6, trailing: 14))
                                 .onAppear {
                                     // Infinite scroll — bump the visible count
                                     // when the last-visible item appears.
