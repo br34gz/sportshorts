@@ -92,9 +92,24 @@ struct Sport: Identifiable, Hashable, Codable {
 }
 
 struct CompetitionMeta: Identifiable, Hashable, Codable {
-    let id: String          // "epl", "ucl", "nba"
-    let label: String       // "Premier League"
-    let keywords: [String]  // ["premier league", "epl"]
+    let id: String           // "epl", "ucl", "nba"
+    let label: String        // "Premier League"
+    let group: String?       // e.g. "England", "Spain", "Europe" (soccer only)
+    let keywords: [String]   // ["premier league", "epl"]
+
+    init(id: String, label: String, group: String? = nil, keywords: [String]) {
+        self.id = id; self.label = label; self.group = group; self.keywords = keywords
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.label = try c.decode(String.self, forKey: .label)
+        self.group = try c.decodeIfPresent(String.self, forKey: .group)
+        self.keywords = (try? c.decode([String].self, forKey: .keywords)) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey { case id, label, group, keywords }
 }
 
 // MARK: - Catalog (channels.json shape)

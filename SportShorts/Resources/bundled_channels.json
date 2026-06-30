@@ -1,6 +1,24 @@
 {
   "sports": [
     {
+      "id": "soccer",
+      "label": "Soccer",
+      "icon": "soccerball",
+      "keywords": ["premier league", "epl ", " epl", "la liga", "laliga", "bundesliga", "ligue 1", "serie a", "champions league", "europa league", "uefa", "fifa", "world cup", "ucl ", " ucl", "uel ", " uel", "fa cup", "carabao cup", "league cup", "soccer", "match highlights"],
+      "competitions": [
+        {"id": "epl", "label": "Premier League", "group": "England", "keywords": ["premier league", "epl "]},
+        {"id": "fac", "label": "FA Cup", "group": "England", "keywords": ["fa cup"]},
+        {"id": "efl", "label": "League Cup", "group": "England", "keywords": ["carabao cup", "league cup", "efl cup"]},
+        {"id": "laliga", "label": "La Liga", "group": "Spain", "keywords": ["la liga", "laliga"]},
+        {"id": "bundesliga", "label": "Bundesliga", "group": "Germany", "keywords": ["bundesliga"]},
+        {"id": "ligue1", "label": "Ligue 1", "group": "France", "keywords": ["ligue 1"]},
+        {"id": "seriea", "label": "Serie A", "group": "Italy", "keywords": ["serie a"]},
+        {"id": "ucl", "label": "Champions League", "group": "Europe", "keywords": ["champions league", "ucl"]},
+        {"id": "uel", "label": "Europa League", "group": "Europe", "keywords": ["europa league", "uel"]},
+        {"id": "fifa_wc", "label": "FIFA World Cup", "group": "International", "keywords": ["world cup"]}
+      ]
+    },
+    {
       "id": "nfl",
       "label": "NFL",
       "icon": "football.fill",
@@ -84,24 +102,6 @@
         {"id": "test", "label": "Test Cricket", "keywords": ["test match", "the ashes"]},
         {"id": "odi", "label": "ODI Cricket", "keywords": [" odi "]},
         {"id": "t20i", "label": "T20 Cricket", "keywords": [" t20 ", "t20i"]}
-      ]
-    },
-    {
-      "id": "soccer",
-      "label": "Soccer",
-      "icon": "soccerball",
-      "keywords": ["premier league", "epl ", " epl", "la liga", "laliga", "bundesliga", "ligue 1", "serie a", "champions league", "europa league", "uefa", "fifa", "world cup", "ucl ", " ucl", "uel ", " uel", "fa cup", "carabao cup", "league cup", "soccer", "match highlights"],
-      "competitions": [
-        {"id": "epl", "label": "Premier League", "keywords": ["premier league", "epl "]},
-        {"id": "laliga", "label": "La Liga", "keywords": ["la liga", "laliga"]},
-        {"id": "bundesliga", "label": "Bundesliga", "keywords": ["bundesliga"]},
-        {"id": "ligue1", "label": "Ligue 1", "keywords": ["ligue 1"]},
-        {"id": "seriea", "label": "Serie A", "keywords": ["serie a"]},
-        {"id": "ucl", "label": "Champions League", "keywords": ["champions league", "ucl"]},
-        {"id": "uel", "label": "Europa League", "keywords": ["europa league", "uel"]},
-        {"id": "fac", "label": "FA Cup", "keywords": ["fa cup"]},
-        {"id": "efl", "label": "League Cup", "keywords": ["carabao cup", "league cup", "efl cup"]},
-        {"id": "fifa_wc", "label": "FIFA World Cup", "keywords": ["world cup"]}
       ]
     }
   ],

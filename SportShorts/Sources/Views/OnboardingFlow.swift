@@ -176,6 +176,18 @@ private struct SportsStep: View {
     }
 }
 
+private func groupedCompetitions(_ comps: [CompetitionMeta]) -> [(group: String?, comps: [CompetitionMeta])] {
+    var out: [(String?, [CompetitionMeta])] = []
+    for c in comps {
+        if let last = out.last, last.0 == c.group {
+            out[out.count - 1].1.append(c)
+        } else {
+            out.append((c.group, [c]))
+        }
+    }
+    return out
+}
+
 private struct OnboardingSportRow: View {
     let sport: Sport
     let expanded: Bool
@@ -221,18 +233,29 @@ private struct OnboardingSportRow: View {
             .buttonStyle(.plain)
 
             if sportOn && hasMultipleComps && expanded {
-                VStack(spacing: 4) {
-                    ForEach(sport.competitions) { comp in
-                        Button { toggleComp(comp.id) } label: {
-                            HStack {
-                                Text(comp.label).font(.subheadline).foregroundStyle(.primary)
-                                Spacer()
-                                Image(systemName: pickedComps.contains(comp.id) ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(pickedComps.contains(comp.id) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                            }
-                            .padding(.leading, 46).padding(.trailing, 18).padding(.vertical, 8)
+                let groups = groupedCompetitions(sport.competitions)
+                let anyGrouped = groups.contains(where: { $0.group != nil })
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(groups.enumerated()), id: \.offset) { _, section in
+                        if anyGrouped, let group = section.group {
+                            Text(group.uppercased())
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 46)
+                                .padding(.top, 6)
                         }
-                        .buttonStyle(.plain)
+                        ForEach(section.comps) { comp in
+                            Button { toggleComp(comp.id) } label: {
+                                HStack {
+                                    Text(comp.label).font(.subheadline).foregroundStyle(.primary)
+                                    Spacer()
+                                    Image(systemName: pickedComps.contains(comp.id) ? "checkmark.circle.fill" : "circle")
+                                        .foregroundStyle(pickedComps.contains(comp.id) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                                }
+                                .padding(.leading, 46).padding(.trailing, 18).padding(.vertical, 8)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
                 .padding(.bottom, 8)

@@ -96,6 +96,25 @@ final class AppSession {
         lastFeedError = nil
     }
 
+    /// The feed filtered by the user's followed sports + competitions.
+    /// Used by the Highlights view and the per-sport filter chips.
+    var followedFeed: [VideoItem] {
+        // Index competitions actually picked per sport.
+        var compsPickedPerSport: [String: Set<String>] = [:]
+        for sport in catalog.sports {
+            let picked = Set(sport.competitions.map(\.id)).intersection(followedCompetitionIds)
+            if !picked.isEmpty { compsPickedPerSport[sport.id] = picked }
+        }
+        return feed.filter { item in
+            guard followedSportIds.contains(item.sportId) else { return false }
+            if let pickedComps = compsPickedPerSport[item.sportId] {
+                guard let comp = item.competitionId else { return false }
+                return pickedComps.contains(comp)
+            }
+            return true
+        }
+    }
+
     /// Look up channel metadata by channelId, across all sources.
     func channel(byId channelId: String) -> YouTubeChannel? {
         let countryChannels = country.flatMap { catalog.countries[$0.code] } ?? []

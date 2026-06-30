@@ -170,22 +170,46 @@ private struct SportSettingsRow: View {
             }
 
             if sportOn && hasMultipleComps && expanded {
+                let groups = groupedCompetitions(sport.competitions)
+                let anyGrouped = groups.contains(where: { $0.group != nil })
                 VStack(spacing: 0) {
-                    ForEach(sport.competitions) { comp in
-                        Divider().padding(.leading, 32)
-                        Toggle(isOn: Binding(
-                            get: { followedComps.contains(comp.id) },
-                            set: { _ in toggleComp(comp.id) }
-                        )) {
-                            Text(comp.label)
-                                .font(.subheadline)
+                    ForEach(Array(groups.enumerated()), id: \.offset) { _, section in
+                        if anyGrouped, let group = section.group {
+                            Text(group.uppercased())
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 8)
                                 .padding(.leading, 32)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        .padding(.vertical, 6)
+                        ForEach(section.comps) { comp in
+                            Divider().padding(.leading, 32)
+                            Toggle(isOn: Binding(
+                                get: { followedComps.contains(comp.id) },
+                                set: { _ in toggleComp(comp.id) }
+                            )) {
+                                Text(comp.label)
+                                    .font(.subheadline)
+                                    .padding(.leading, 32)
+                            }
+                            .padding(.vertical, 6)
+                        }
                     }
                 }
                 .padding(.top, 4)
             }
         }
+    }
+
+    private func groupedCompetitions(_ comps: [CompetitionMeta]) -> [(group: String?, comps: [CompetitionMeta])] {
+        var out: [(String?, [CompetitionMeta])] = []
+        for c in comps {
+            if let last = out.last, last.0 == c.group {
+                out[out.count - 1].1.append(c)
+            } else {
+                out.append((c.group, [c]))
+            }
+        }
+        return out
     }
 }

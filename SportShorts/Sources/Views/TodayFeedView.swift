@@ -102,8 +102,9 @@ struct TodayFeedView: View {
     }
 
     private var visibleFeed: [VideoItem] {
-        if filterSports.isEmpty { return session.feed }
-        return session.feed.filter { filterSports.contains($0.sportId) }
+        let base = session.followedFeed
+        if filterSports.isEmpty { return base }
+        return base.filter { filterSports.contains($0.sportId) }
     }
 
     /// Refresh, throttled to once every 30s unless `force` is set.
@@ -115,8 +116,6 @@ struct TodayFeedView: View {
         do {
             session.feed = try await FeedFetcher.fetch(
                 channels: session.activeChannels,
-                followedSports: session.followedSportIds,
-                followedCompetitions: session.followedCompetitionIds,
                 catalog: session.catalog,
                 allowSpoilers: session.allowSpoilers
             )

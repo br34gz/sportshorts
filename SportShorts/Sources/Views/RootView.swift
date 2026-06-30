@@ -31,8 +31,6 @@ struct RootView: View {
         do {
             session.feed = try await FeedFetcher.fetch(
                 channels: session.activeChannels,
-                followedSports: session.followedSportIds,
-                followedCompetitions: session.followedCompetitionIds,
                 catalog: session.catalog,
                 allowSpoilers: session.allowSpoilers
             )
