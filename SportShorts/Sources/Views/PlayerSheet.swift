@@ -12,47 +12,35 @@ struct PlayerSheet: View {
     @State private var unplayable = false
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                ZStack {
-                    Color.black
-                    if unplayable {
-                        embedFailedView.padding()
-                    } else {
-                        IFramePlayer(
-                            videoId: item.id,
-                            skipRanges: skipRanges,
-                            skipRangesLoaded: skipRangesLoaded,
-                            onUnplayable: { unplayable = true }
-                        )
-                    }
-                }
-                .aspectRatio(16/9, contentMode: .fit)
+        VStack(spacing: 0) {
+            PlayerHeader(item: item, onClose: { dismiss() })
 
-                ChannelFollowRow(channelId: item.channelId, fallbackName: item.channelTitle)
-
-                if let stats = matchStats {
-                    StatsPanel(stats: stats, revealed: $revealStats)
+            ZStack {
+                Color.black
+                if unplayable {
+                    embedFailedView.padding()
                 } else {
-                    Color.black
+                    IFramePlayer(
+                        videoId: item.id,
+                        skipRanges: skipRanges,
+                        skipRangesLoaded: skipRangesLoaded,
+                        onUnplayable: { unplayable = true }
+                    )
                 }
             }
-            .background(Color.black.ignoresSafeArea())
-            .toolbar {
-                ToolbarItem(placement: .principal) { NavTitleBlock(item: item) }
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { dismiss() } label: { Image(systemName: "xmark") }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: item.watchURL) {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                }
+            .aspectRatio(16/9, contentMode: .fit)
+
+            ChannelFollowRow(channelId: item.channelId, fallbackName: item.channelTitle)
+
+            if let stats = matchStats {
+                StatsPanel(stats: stats, revealed: $revealStats)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            } else {
+                LinearGradient(colors: [Color.black, Color(white: 0.07)], startPoint: .top, endPoint: .bottom)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .toolbarBackground(.black, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
+        .background(Color.black.ignoresSafeArea())
         .preferredColorScheme(.dark)
         .task {
             skipRanges = await SponsorBlock.fetchSkipRanges(videoId: item.id)
@@ -96,26 +84,58 @@ struct PlayerSheet: View {
     }
 }
 
-// MARK: - Nav title
+// MARK: - Custom player header
 
-private struct NavTitleBlock: View {
+/// Tight header that replaces the NavigationStack toolbar. SwiftUI's
+/// navigation chrome adds ~30pt of slack below the title bar even with
+/// inline placement; this gives us the X / title / share row with no
+/// extra padding so the video sits flush against it.
+private struct PlayerHeader: View {
     let item: VideoItem
+    let onClose: () -> Void
+
     var body: some View {
-        VStack(spacing: 1) {
-            Text(matchupOrTitle)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-            HStack(spacing: 5) {
-                Image(systemName: item.sportIcon)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.75))
-                Text(item.competitionLabel ?? item.sportLabel)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.75))
+        HStack(alignment: .center, spacing: 12) {
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Color.white.opacity(0.12)))
+            }
+            .buttonStyle(.plain)
+
+            Spacer(minLength: 0)
+
+            VStack(spacing: 1) {
+                Text(matchupOrTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    Image(systemName: item.sportIcon)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text(item.competitionLabel ?? item.sportLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+            }
+            .frame(maxWidth: 240)
+
+            Spacer(minLength: 0)
+
+            ShareLink(item: item.watchURL) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 32, height: 32)
+                    .background(Circle().fill(Color.white.opacity(0.12)))
             }
         }
-        .frame(maxWidth: 240)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color.black)
     }
 
     private var matchupOrTitle: String {
@@ -294,16 +314,17 @@ struct StatsPanel: View {
     @Binding var revealed: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            if revealed {
-                revealedContent
-            } else {
-                spoilerCurtain
+        ZStack(alignment: .top) {
+            LinearGradient(colors: [Color.black, Color(white: 0.07)], startPoint: .top, endPoint: .bottom)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            VStack(spacing: 0) {
+                if revealed {
+                    revealedContent
+                } else {
+                    spoilerCurtain
+                }
             }
         }
-        .background(
-            LinearGradient(colors: [Color.black, Color(white: 0.07)], startPoint: .top, endPoint: .bottom)
-        )
         .overlay(alignment: .top) {
             Rectangle().fill(Color.white.opacity(0.08)).frame(height: 0.5)
         }

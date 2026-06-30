@@ -35,6 +35,13 @@ final class AppSession {
         didSet { persistSet(hiddenChannelIds, key: "sportshorts.hidden_channels") }
     }
 
+    /// When false, the highlights feed hides titles that reveal the result
+    /// (score line, "Goal", "wins", etc). User-toggleable from the Highlights
+    /// toolbar. Default false (spoiler-free).
+    var allowSpoilers: Bool {
+        didSet { UserDefaults.standard.set(allowSpoilers, forKey: "sportshorts.allow_spoilers") }
+    }
+
     var catalog: Catalog = .empty
     var feed: [VideoItem] = []
     var isLoadingFeed = false
@@ -47,6 +54,7 @@ final class AppSession {
         self.followedSportIds = Self.loadSet("sportshorts.followed_sports")
         self.followedCompetitionIds = Self.loadSet("sportshorts.followed_comps")
         self.hiddenChannelIds = Self.loadSet("sportshorts.hidden_channels")
+        self.allowSpoilers = UserDefaults.standard.bool(forKey: "sportshorts.allow_spoilers")
 
         if let data = UserDefaults.standard.data(forKey: "sportshorts.user_channels"),
            let decoded = try? JSONDecoder().decode([YouTubeChannel].self, from: data) {

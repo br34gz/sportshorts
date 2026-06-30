@@ -11,7 +11,8 @@ enum FeedFetcher {
     static func fetch(channels: [YouTubeChannel],
                       followedSports: Set<String>,
                       followedCompetitions: Set<String>,
-                      catalog: Catalog) async throws -> [VideoItem] {
+                      catalog: Catalog,
+                      allowSpoilers: Bool = false) async throws -> [VideoItem] {
         guard !channels.isEmpty else { return [] }
 
         // Index sports for quick label lookup post-classification.
@@ -29,7 +30,7 @@ enum FeedFetcher {
         await withTaskGroup(of: [VideoItem].self) { group in
             for channel in channels {
                 group.addTask {
-                    (try? await fetchOne(channel: channel, catalog: catalog, sportsById: sportsById)) ?? []
+                    (try? await fetchOne(channel: channel, catalog: catalog, sportsById: sportsById, allowSpoilers: allowSpoilers)) ?? []
                 }
             }
             for await items in group { merged.append(contentsOf: items) }
@@ -57,14 +58,15 @@ enum FeedFetcher {
 
     private static func fetchOne(channel: YouTubeChannel,
                                  catalog: Catalog,
-                                 sportsById: [String: Sport]) async throws -> [YouTubeVideo] {
+                                 sportsById: [String: Sport],
+                                 allowSpoilers: Bool) async throws -> [YouTubeVideo] {
         var req = URLRequest(url: channel.feedURL)
         req.timeoutInterval = 8
         let (data, _) = try await URLSession.shared.data(for: req)
         let raw = try RSSParser.parse(data, channel: channel)
 
         return raw.compactMap { entry -> YouTubeVideo? in
-            guard HighlightsFilter.isMatchHighlight(title: entry.title) else { return nil }
+            guard HighlightsFilter.isMatchHighlight(title: entry.title, allowSpoilers: allowSpoilers) else { return nil }
             guard let match = SportClassifier.classify(title: entry.title, channel: channel, catalog: catalog),
                   let sport = sportsById[match.sport.id] else { return nil }
             return YouTubeVideo(

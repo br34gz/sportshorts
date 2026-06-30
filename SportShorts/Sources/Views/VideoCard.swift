@@ -60,7 +60,7 @@ struct VideoCard: View {
             .padding(8)
             .background {
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(Color.white.opacity(0.04))
+                    .fill(Color.white.opacity(0.08))
             }
         }
         .buttonStyle(.plain)

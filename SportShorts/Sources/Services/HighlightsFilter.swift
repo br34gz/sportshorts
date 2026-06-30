@@ -4,8 +4,16 @@ import Foundation
 /// reels, season compilations, top-N clips, shorts, pressers, podcasts, etc.
 enum HighlightsFilter {
 
-    static func isMatchHighlight(title: String) -> Bool {
+    static func isMatchHighlight(title: String, allowSpoilers: Bool = true) -> Bool {
         let lower = title.lowercased()
+
+        // Spoiler gate — when spoilers are off, drop titles that reveal the
+        // result before the user has chosen to see it. Anything beyond
+        // "Team A v Team B | Competition | Date"-style markers is considered
+        // a spoiler: explicit scores, goal/score verbs, and result language.
+        if !allowSpoilers && isLikelySpoiler(title: title, lower: lower) {
+            return false
+        }
 
         // 1. Hard rejects — any of these wins, video is dropped.
         let rejectKeywords: [String] = [
@@ -113,6 +121,49 @@ enum HighlightsFilter {
 
     private static func matchesCompetitionPhrase(_ lower: String) -> Bool {
         for p in competitionPhrases where lower.contains(p) { return true }
+        return false
+    }
+
+    // MARK: - Spoiler detection
+
+    private static let spoilerVerbs: [String] = [
+        " goal ", " goals ", " goal!", " goal:", "goal|",
+        " scores ", " scored ", " scoring ", " scorer",
+        " wins ", " winning ", " winner ", " win!", " win:",
+        " loses ", " loss ", " losing ", " loser",
+        " beat ", " beats ", " beaten ", " thrash", " hammer",
+        " defeat ", " defeats ", " defeated ", " stuns ", " stunner",
+        " upset ", " comeback ", " collapse", " demolish",
+        " smashed ", " crushed ", " edge ", " edges ", " pip ", " pips ",
+        " knockout ", " knock out ", " knocked out ", " eliminated ",
+        " through to ", " advance to ", " advances to ",
+        " hat-trick ", " hattrick ", " brace ", " double ", " triple ",
+        " penalty shootout ", " shootout ",
+        " send off", " sent off", " red card", " sending off",
+        " dismissed ", " own goal",
+    ]
+
+    private static let scoreRegex = #"\b\d{1,3}\s*[-–]\s*\d{1,3}\b"#
+
+    private static func isLikelySpoiler(title: String, lower: String) -> Bool {
+        // Numeric score line gives away the result.
+        if title.range(of: scoreRegex, options: .regularExpression) != nil {
+            // 4-digit year ranges shouldn't count as a score — pad with spaces
+            // and check whether the matched range looks like a small score.
+            // For simplicity, treat any X-Y where both X,Y < 100 as a spoiler.
+            let paddedLower = " " + lower + " "
+            if let r = paddedLower.range(of: scoreRegex, options: .regularExpression) {
+                let parts = paddedLower[r].split(whereSeparator: { $0 == "-" || $0 == "–" })
+                if parts.count == 2,
+                   let a = Int(parts[0].trimmingCharacters(in: .whitespaces)),
+                   let b = Int(parts[1].trimmingCharacters(in: .whitespaces)),
+                   a < 100, b < 100 {
+                    return true
+                }
+            }
+        }
+        let padded = " " + lower + " "
+        for verb in spoilerVerbs where padded.contains(verb) { return true }
         return false
     }
 }

@@ -33,7 +33,8 @@ struct RootView: View {
                 channels: session.activeChannels,
                 followedSports: session.followedSportIds,
                 followedCompetitions: session.followedCompetitionIds,
-                catalog: session.catalog
+                catalog: session.catalog,
+                allowSpoilers: session.allowSpoilers
             )
             session.lastFeedError = nil
         } catch {

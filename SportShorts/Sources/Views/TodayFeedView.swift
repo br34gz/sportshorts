@@ -3,25 +3,19 @@ import SwiftUI
 struct TodayFeedView: View {
     @Environment(AppSession.self) private var session
     @State private var playing: VideoItem?
-    /// Sport IDs the user has toggled on for the current view. nil = all followed.
     @State private var filterSports: Set<String> = []
     @State private var pageSize: Int = 20
+    @State private var lastRefresh: Date = .distantPast
 
     var body: some View {
         NavigationStack {
-            // List as the outer container — pull-to-refresh on List is rock-solid
-            // (and works from an empty state, unlike a ScrollView whose pull
-            // gesture can be ambiguous when content is short).
             List {
                 if !followedSports.isEmpty {
                     Section {
-                        SportFilterChips(
-                            sports: followedSports,
-                            selected: $filterSports
-                        )
-                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+                        SportFilterChips(sports: followedSports, selected: $filterSports)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                     }
                 }
 
@@ -50,8 +44,6 @@ struct TodayFeedView: View {
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 6, leading: 14, bottom: 6, trailing: 14))
                                 .onAppear {
-                                    // Infinite scroll — bump the visible count
-                                    // when the last-visible item appears.
                                     if let last = visibleFeed.prefix(pageSize).last,
                                        item.id == last.id,
                                        pageSize < visibleFeed.count {
@@ -78,14 +70,28 @@ struct TodayFeedView: View {
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button { Task { pageSize = 20; await refresh() } } label: {
+                    SpoilerToggle(isOn: Binding(
+                        get: { session.allowSpoilers },
+                        set: { newVal in
+                            session.allowSpoilers = newVal
+                            Task { pageSize = 20; await refresh(force: true) }
+                        }
+                    ))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { Task { pageSize = 20; await refresh(force: true) } } label: {
                         Image(systemName: "arrow.clockwise")
                     }
                     .disabled(session.isLoadingFeed)
                 }
             }
-            .sheet(item: $playing) { item in
+            .sheet(item: $playing, onDismiss: {
+                Task { await refresh() }
+            }) { item in
                 PlayerSheet(item: item)
+            }
+            .onAppear {
+                Task { await refresh() }
             }
             .onChange(of: filterSports) { _, _ in pageSize = 20 }
         }
@@ -95,14 +101,15 @@ struct TodayFeedView: View {
         session.catalog.sports.filter { session.followedSportIds.contains($0.id) }
     }
 
-    /// The feed, after applying the user's per-view sport chip selection.
-    /// Empty selection = show all followed sports.
     private var visibleFeed: [VideoItem] {
         if filterSports.isEmpty { return session.feed }
         return session.feed.filter { filterSports.contains($0.sportId) }
     }
 
-    private func refresh() async {
+    /// Refresh, throttled to once every 30s unless `force` is set.
+    private func refresh(force: Bool = false) async {
+        if !force, Date().timeIntervalSince(lastRefresh) < 30 { return }
+        lastRefresh = Date()
         session.isLoadingFeed = true
         defer { session.isLoadingFeed = false }
         do {
@@ -110,7 +117,8 @@ struct TodayFeedView: View {
                 channels: session.activeChannels,
                 followedSports: session.followedSportIds,
                 followedCompetitions: session.followedCompetitionIds,
-                catalog: session.catalog
+                catalog: session.catalog,
+                allowSpoilers: session.allowSpoilers
             )
             session.lastFeedError = nil
         } catch {
@@ -133,11 +141,8 @@ private struct SportFilterChips: View {
                 }
                 ForEach(sports) { sport in
                     FilterChip(label: sport.label, icon: sport.icon, isOn: selected.contains(sport.id)) {
-                        if selected.contains(sport.id) {
-                            selected.remove(sport.id)
-                        } else {
-                            selected.insert(sport.id)
-                        }
+                        if selected.contains(sport.id) { selected.remove(sport.id) }
+                        else { selected.insert(sport.id) }
                     }
                 }
             }
@@ -170,5 +175,22 @@ private struct FilterChip: View {
             .foregroundStyle(isOn ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Spoiler toggle (toolbar)
+
+private struct SpoilerToggle: View {
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Button {
+            isOn.toggle()
+        } label: {
+            Image(systemName: isOn ? "eye.fill" : "eye.slash.fill")
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(isOn ? Color.accentColor : .secondary)
+        }
+        .accessibilityLabel(isOn ? "Hide spoilers" : "Show spoilers")
     }
 }
