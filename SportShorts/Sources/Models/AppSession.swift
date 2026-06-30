@@ -65,6 +65,17 @@ final class AppSession {
         country != nil && !followedSportIds.isEmpty
     }
 
+    /// Wipes country, sports, manually added channels and hidden built-ins.
+    /// Caller-visible effect: app returns to onboarding's country step.
+    func resetApp() {
+        country = nil
+        followedSportIds = []
+        userAddedChannels = []
+        hiddenChannelIds = []
+        feed = []
+        lastFeedError = nil
+    }
+
     /// Every channel the feed should pull from for the current country:
     /// country broadcasters + global league channels + user-added — minus
     /// anything the user has hidden.

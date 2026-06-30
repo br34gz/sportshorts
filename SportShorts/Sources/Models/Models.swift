@@ -29,6 +29,8 @@ struct Country: Identifiable, Hashable, Codable {
 struct YouTubeChannel: Identifiable, Hashable, Codable {
     let channelId: String
     let name: String
+    /// YouTube @handle without the @. e.g. "BBCSport" → displayed as "@BBCSport".
+    let handle: String?
     let note: String?
     /// Optional sport-id list — used as a prior by SportClassifier when titles
     /// are ambiguous. e.g. "Sky Sports Football" → ["soccer"]; "BBC Sport" → [].
@@ -42,16 +44,23 @@ struct YouTubeChannel: Identifiable, Hashable, Codable {
         URL(string: "https://www.youtube.com/feeds/videos.xml?channel_id=\(channelId)")!
     }
 
+    /// "@handle" if we have one, otherwise nil.
+    var displayHandle: String? {
+        guard let h = handle, !h.isEmpty else { return nil }
+        return h.hasPrefix("@") ? h : "@\(h)"
+    }
+
     enum CodingKeys: String, CodingKey {
         case channelId = "channel_id"
-        case name, note
+        case name, handle, note
         case sportHints = "sport_hints"
         case userAdded = "user_added"
     }
 
-    init(channelId: String, name: String, note: String? = nil, sportHints: [String] = [], userAdded: Bool = false) {
+    init(channelId: String, name: String, handle: String? = nil, note: String? = nil, sportHints: [String] = [], userAdded: Bool = false) {
         self.channelId = channelId
         self.name = name
+        self.handle = handle
         self.note = note
         self.sportHints = sportHints
         self.userAdded = userAdded
@@ -61,6 +70,7 @@ struct YouTubeChannel: Identifiable, Hashable, Codable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.channelId = try c.decode(String.self, forKey: .channelId)
         self.name = try c.decode(String.self, forKey: .name)
+        self.handle = try c.decodeIfPresent(String.self, forKey: .handle)
         self.note = try c.decodeIfPresent(String.self, forKey: .note)
         self.sportHints = (try? c.decode([String].self, forKey: .sportHints)) ?? []
         self.userAdded = (try? c.decode(Bool.self, forKey: .userAdded)) ?? false

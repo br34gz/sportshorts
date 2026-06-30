@@ -26,6 +26,9 @@ enum HighlightsFilter {
             "behind the scenes", "bonus features", "extras",
             "escapes", "tackles only", "saves only", "goals only",
             "ranked", "moments only",
+            "takes questions", "questions ahead",
+            "watch live", "live now",
+            "train before", "training", "in training",
         ]
         for kw in rejectKeywords where lower.contains(kw) {
             return false
@@ -36,11 +39,17 @@ enum HighlightsFilter {
             return false
         }
 
-        // 2. Positive signals — must match at least one of these to be kept.
+        // 2. Positive signals — match any one to keep.
 
         let hasHighlightWord = lower.contains("highlight") || lower.contains("recap")
+        let scoreRegex = #"\b\d{1,3}\s*[-–]\s*\d{1,3}\b"#
+        let teamVsTeamRegex = #"\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\s+v(?:s|s\.)?\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\b"#
 
-        // (a) "match highlights", "extended highlights", "full highlights", "match recap"
+        let hasScore = title.range(of: scoreRegex, options: .regularExpression) != nil
+        let hasTeamVsTeam = title.range(of: teamVsTeamRegex, options: .regularExpression) != nil
+        let hasCompetitionPhrase = matchesCompetitionPhrase(lower)
+
+        // (a) Explicit "match highlights", "extended highlights", etc.
         if lower.contains("match highlights") ||
            lower.contains("match recap") ||
            lower.contains("extended highlights") ||
@@ -54,31 +63,56 @@ enum HighlightsFilter {
             return true
         }
 
-        // (c) Score pattern (e.g. "Liverpool 3-1 Man United", "21-7", "South Africa 3 Canada 0").
-        if title.range(of: #"\b\d{1,3}\s*[-–]\s*\d{1,3}\b"#, options: .regularExpression) != nil,
-           hasHighlightWord {
-            return true
-        }
+        // (c) Score pattern + highlights word.
+        if hasScore && hasHighlightWord { return true }
 
-        // (d) "Team A v(s) Team B" pattern with two capitalized phrases + highlights word.
-        let teamVsTeam = #"\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\s+v(?:s|s\.)?\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\b"#
-        if title.range(of: teamVsTeam, options: .regularExpression) != nil,
-           hasHighlightWord {
-            return true
-        }
+        // (d) "Team A v Team B" + highlights word.
+        if hasTeamVsTeam && hasHighlightWord { return true }
 
-        // (e) "Test highlights" / "Test Match" — typical cricket / rugby Test marker.
+        // (e) "Test highlights" / "Test Match" — typical cricket/rugby Test marker.
         if lower.contains("test highlights") || lower.contains("test match highlights") {
             return true
         }
 
-        // (f) "Highlights:" or "| Highlights" form (suffix or colon) — common for tournament games.
+        // (f) "Highlights" combined with a pipe/colon separator.
         if lower.contains("| highlights") ||
+           lower.contains("highlights |") ||
            lower.contains(": highlights") ||
            lower.contains("highlights:") {
             return true
         }
 
+        // (g) Title names a competition (Premier League, World Cup, NBA, etc.)
+        // AND has a match-shape signal — even without the explicit "highlights"
+        // word. This catches official-channel clip titles like
+        // "Germany v Paraguay | FIFA World Cup 2026" or "Brazil 2-1 Japan | FIFA World Cup".
+        if hasCompetitionPhrase && (hasScore || hasTeamVsTeam) {
+            return true
+        }
+
+        // (h) Score pattern + competition phrase — even without team-v-team form.
+        if hasScore && hasCompetitionPhrase { return true }
+
+        return false
+    }
+
+    /// Substring presence test against a baked-in list of competition phrases.
+    /// Mirrors the Sport.competitions[].keywords in channels.json but baked
+    /// here to keep the filter self-contained and synchronous.
+    private static let competitionPhrases: [String] = [
+        "premier league", "la liga", "bundesliga", "ligue 1", "serie a",
+        "champions league", "europa league", "uefa", "fifa", "world cup",
+        "fa cup", "carabao cup", "league cup", "efl cup",
+        "nba", "nfl", "nhl", "nbl", "afl", "nrl",
+        "stanley cup", "super bowl",
+        "wimbledon", "australian open", "us open", "roland garros", "french open",
+        "atp tour", "wta tour", "atp", "wta",
+        "the ashes", "icc", "ipl ", "big bash", "bbl", "t20i", " t20 ", " odi ", "test match",
+        "formula 1", "grand prix",
+    ]
+
+    private static func matchesCompetitionPhrase(_ lower: String) -> Bool {
+        for p in competitionPhrases where lower.contains(p) { return true }
         return false
     }
 }

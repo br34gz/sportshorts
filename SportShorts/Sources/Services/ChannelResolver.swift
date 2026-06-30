@@ -19,7 +19,13 @@ enum ChannelResolver {
         }
     }
 
-    static func resolve(input raw: String) async throws -> (channelId: String, name: String) {
+    struct Resolved {
+        let channelId: String
+        let name: String
+        let handle: String?
+    }
+
+    static func resolve(input raw: String) async throws -> Resolved {
         let pageURL = try pageURL(from: raw)
         var req = URLRequest(url: pageURL)
         // YouTube serves a stripped page without the externalId field to
@@ -47,7 +53,11 @@ enum ChannelResolver {
             ?? extract(pattern: #""title":"([^"]+)""#, in: html)
             ?? "YouTube channel"
 
-        return (channelId, name)
+        // Canonical handle, if YouTube exposes one for this channel.
+        let handle = extract(pattern: #""canonicalBaseUrl":"/@([A-Za-z0-9._-]+)""#, in: html)
+            ?? extract(pattern: #"<link itemprop="url" href="http[s]?://www\.youtube\.com/@([A-Za-z0-9._-]+)"#, in: html)
+
+        return Resolved(channelId: channelId, name: name, handle: handle)
     }
 
     private static func pageURL(from raw: String) throws -> URL {

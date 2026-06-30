@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppSession.self) private var session
+    @State private var showingResetConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -19,24 +20,18 @@ struct SettingsView: View {
                     }
                 }
 
-                Section("Sports") {
-                    ForEach(session.catalog.sports) { sport in
-                        Toggle(isOn: Binding(
-                            get: { session.followedSportIds.contains(sport.id) },
-                            set: { newVal in
-                                if newVal { session.followedSportIds.insert(sport.id) }
-                                else { session.followedSportIds.remove(sport.id) }
-                            }
-                        )) {
-                            HStack(spacing: 8) {
-                                Image(systemName: sport.icon).foregroundStyle(.tint).frame(width: 22)
-                                Text(sport.label)
-                            }
+                Section {
+                    NavigationLink {
+                        SportsSettingsView()
+                    } label: {
+                        HStack {
+                            Image(systemName: "trophy.fill").foregroundStyle(.tint).frame(width: 22)
+                            Text("Sports")
+                            Spacer()
+                            Text("\(session.followedSportIds.count) of \(session.catalog.sports.count)")
+                                .foregroundStyle(.secondary)
                         }
                     }
-                }
-
-                Section {
                     NavigationLink {
                         ChannelsSettingsView()
                     } label: {
@@ -49,7 +44,7 @@ struct SettingsView: View {
                         }
                     }
                 } footer: {
-                    Text("View, hide, or add YouTube channels the app pulls highlights from.")
+                    Text("Choose which sports to follow and which YouTube channels to pull from.")
                 }
 
                 Section("About") {
@@ -60,8 +55,58 @@ struct SettingsView: View {
                         Task { session.catalog = await ChannelCatalog.load(forceRefresh: true) }
                     }
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        showingResetConfirm = true
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Text("Reset App")
+                            Spacer()
+                        }
+                    }
+                } footer: {
+                    Text("Removes all manually added channels and returns to the welcome screen.")
+                }
             }
             .navigationTitle("Settings")
+            .confirmationDialog("Reset SportShorts?", isPresented: $showingResetConfirm, titleVisibility: .visible) {
+                Button("Reset", role: .destructive) { session.resetApp() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This clears your country, followed sports, hidden channels and any channels you added manually.")
+            }
         }
+    }
+}
+
+// MARK: - Sports settings sub-page
+
+private struct SportsSettingsView: View {
+    @Environment(AppSession.self) private var session
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(session.catalog.sports) { sport in
+                    Toggle(isOn: Binding(
+                        get: { session.followedSportIds.contains(sport.id) },
+                        set: { newVal in
+                            if newVal { session.followedSportIds.insert(sport.id) }
+                            else { session.followedSportIds.remove(sport.id) }
+                        }
+                    )) {
+                        HStack(spacing: 8) {
+                            Image(systemName: sport.icon).foregroundStyle(.tint).frame(width: 22)
+                            Text(sport.label)
+                        }
+                    }
+                }
+            } footer: {
+                Text("Highlights from any broadcaster will be filtered to just the sports you follow.")
+            }
+        }
+        .navigationTitle("Sports")
     }
 }

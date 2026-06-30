@@ -27,8 +27,8 @@ struct ChannelsSettingsView: View {
                     ForEach(session.userAddedChannels, id: \.channelId) { ch in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(ch.name).font(.body.weight(.medium))
-                            if let note = ch.note, !note.isEmpty {
-                                Text(note).font(.caption).foregroundStyle(.secondary)
+                            if let handle = ch.displayHandle {
+                                Text(handle).font(.caption).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -71,10 +71,8 @@ private struct ChannelRow: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(channel.name).font(.body.weight(.medium)).foregroundStyle(.primary)
-                    if let note = channel.note, !note.isEmpty {
-                        Text(note).font(.caption).foregroundStyle(.secondary)
-                    } else if !channel.sportHints.isEmpty {
-                        Text(channel.sportHints.joined(separator: ", ")).font(.caption).foregroundStyle(.secondary)
+                    if let handle = channel.displayHandle {
+                        Text(handle).font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 Spacer()
@@ -138,13 +136,19 @@ private struct AddChannelSheet: View {
         Task {
             let trimmed = input.trimmingCharacters(in: .whitespaces)
             do {
-                let (channelId, name) = try await ChannelResolver.resolve(input: trimmed)
-                if session.userAddedChannels.contains(where: { $0.channelId == channelId }) ||
-                   session.catalog.globalChannels.contains(where: { $0.channelId == channelId }) ||
-                   (session.country.flatMap { session.catalog.countries[$0.code] } ?? []).contains(where: { $0.channelId == channelId }) {
+                let resolved = try await ChannelResolver.resolve(input: trimmed)
+                if session.userAddedChannels.contains(where: { $0.channelId == resolved.channelId }) ||
+                   session.catalog.globalChannels.contains(where: { $0.channelId == resolved.channelId }) ||
+                   (session.country.flatMap { session.catalog.countries[$0.code] } ?? []).contains(where: { $0.channelId == resolved.channelId }) {
                     errorMessage = "That channel is already tracked."
                 } else {
-                    let ch = YouTubeChannel(channelId: channelId, name: name, note: nil, sportHints: [], userAdded: true)
+                    let ch = YouTubeChannel(
+                        channelId: resolved.channelId,
+                        name: resolved.name,
+                        handle: resolved.handle,
+                        sportHints: [],
+                        userAdded: true
+                    )
                     session.userAddedChannels.append(ch)
                     dismiss()
                 }

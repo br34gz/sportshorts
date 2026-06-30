@@ -29,7 +29,13 @@ enum FeedFetcher {
         var seen = Set<String>()
         let deduped = merged.filter { seen.insert($0.id).inserted }
         let inSport = deduped.filter { followedSports.contains($0.sportId) }
-        return inSport.sorted { $0.publishedAt > $1.publishedAt }
+
+        // 7-day recency window — the daily list shouldn't show ancient highlights
+        // even if a channel's RSS still has them.
+        let cutoff = Calendar(identifier: .gregorian).date(byAdding: .day, value: -7, to: Date()) ?? Date(timeIntervalSinceNow: -7 * 86_400)
+        let recent = inSport.filter { $0.publishedAt >= cutoff }
+
+        return recent.sorted { $0.publishedAt > $1.publishedAt }
     }
 
     private static func fetchOne(channel: YouTubeChannel,
