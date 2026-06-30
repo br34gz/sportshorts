@@ -165,36 +165,214 @@ enum MatchStatsService {
     ]
 
     static func supports(competitionId: String) -> Bool {
-        configs[competitionId] != nil
+        // NRL is handled via TheSportsDB rather than ESPN, so it's not in
+        // `configs` but is supported.
+        if competitionId == "nrl" { return true }
+        return configs[competitionId] != nil
     }
 
     /// Try to find a completed match (or race, for F1) for the given video.
     static func fetchMatch(title: String, publishedAt: Date, competitionId: String) async -> MatchStats? {
-        guard let config = configs[competitionId] else { return nil }
-
-        // F1 is a race, not a team-vs-team match — different fetch path.
+        // F1 is a race, not a team match — different fetch path entirely.
         if competitionId == "f1" {
+            guard let config = configs[competitionId] else { return nil }
             return await fetchRace(config: config, publishedAt: publishedAt)
         }
-
+        // NRL has no ESPN coverage — use TheSportsDB.
+        if competitionId == "nrl" {
+            return await fetchNRLMatch(title: title, publishedAt: publishedAt)
+        }
+        guard let config = configs[competitionId] else { return nil }
         guard let teamHints = parseTeams(from: title) else { return nil }
 
-        let dayFormatter: DateFormatter = {
-            let f = DateFormatter()
-            f.timeZone = TimeZone(identifier: "UTC")
-            f.dateFormat = "yyyyMMdd"
-            return f
-        }()
+        // Tennis tournaments wrap a multi-day bracket — the event has
+        // event.groupings[].competitions[] (one per match) rather than
+        // event.competitions[].competitors[]. Walk the bracket separately.
+        if config.espnSport == "tennis" {
+            for delta in [0, -1, -2, 1, -3, -4] {
+                let day = Calendar(identifier: .gregorian).date(byAdding: .day, value: delta, to: publishedAt) ?? publishedAt
+                let dateStr = utcDay(day)
+                if let stats = await fetchTennisMatch(config: config, dateStr: dateStr, hints: teamHints) {
+                    return stats
+                }
+            }
+            return nil
+        }
 
         // Highlight videos are usually posted same-day or 1 day after kickoff.
         for delta in [0, -1, -2, 1] {
             let day = Calendar(identifier: .gregorian).date(byAdding: .day, value: delta, to: publishedAt) ?? publishedAt
-            let dateStr = dayFormatter.string(from: day)
+            let dateStr = utcDay(day)
             if let stats = await fetchAndMatch(config: config, dateStr: dateStr, hints: teamHints) {
                 return stats
             }
         }
         return nil
+    }
+
+    private static func utcDay(_ d: Date) -> String {
+        let f = DateFormatter()
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyyMMdd"
+        return f.string(from: d)
+    }
+
+    // MARK: - Tennis (ESPN bracket walker)
+
+    private static func fetchTennisMatch(config: SportConfig, dateStr: String, hints: TeamHints) async -> MatchStats? {
+        let url = URL(string: "https://site.api.espn.com/apis/site/v2/sports/tennis/atp/scoreboard?dates=\(dateStr)")!
+        // Also probe WTA for women's matches — the title parser doesn't tell us
+        // which tour the players belong to.
+        let wtaURL = URL(string: "https://site.api.espn.com/apis/site/v2/sports/tennis/wta/scoreboard?dates=\(dateStr)")!
+        for src in [url, wtaURL] {
+            if let stats = await walkTennisBracket(url: src, hints: hints) { return stats }
+        }
+        return nil
+    }
+
+    private static func walkTennisBracket(url: URL, hints: TeamHints) async -> MatchStats? {
+        do {
+            var req = URLRequest(url: url)
+            req.timeoutInterval = 12
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let events = root["events"] as? [[String: Any]] else { return nil }
+
+            for event in events {
+                let tournamentName = event["name"] as? String
+                // Tennis-shaped event → has groupings; flat events fall through.
+                guard let groupings = event["groupings"] as? [[String: Any]] else { continue }
+                for grouping in groupings {
+                    guard let competitions = grouping["competitions"] as? [[String: Any]] else { continue }
+                    for comp in competitions {
+                        guard let stype = (comp["status"] as? [String: Any])?["type"] as? [String: Any],
+                              (stype["completed"] as? Bool) ?? false else { continue }
+                        guard let competitors = comp["competitors"] as? [[String: Any]],
+                              competitors.count == 2 else { continue }
+                        let p1Name = teamName(competitors[0])
+                        let p2Name = teamName(competitors[1])
+                        if !teamsMatch(homeName: p1Name, awayName: p2Name, hints: hints) { continue }
+
+                        // Tally sets won + build a "6-2 7-5" linescore.
+                        let lines1 = (competitors[0]["linescores"] as? [[String: Any]]) ?? []
+                        let lines2 = (competitors[1]["linescores"] as? [[String: Any]]) ?? []
+                        let setCount = min(lines1.count, lines2.count)
+                        var p1Sets = 0, p2Sets = 0
+                        var parts: [String] = []
+                        for i in 0..<setCount {
+                            let a = Int((lines1[i]["value"] as? Double) ?? 0)
+                            let b = Int((lines2[i]["value"] as? Double) ?? 0)
+                            if a > b { p1Sets += 1 } else if b > a { p2Sets += 1 }
+                            parts.append("\(a)-\(b)")
+                        }
+
+                        let detail = (stype["detail"] as? String) ?? "Final"
+                        var kickoff: Date?
+                        if let iso = comp["date"] as? String {
+                            kickoff = ISO8601DateFormatter().date(from: iso)
+                        }
+                        let venue = (comp["venue"] as? [String: Any])?["fullName"] as? String
+
+                        return MatchStats(
+                            homeTeam: p1Name,
+                            homeAbbr: teamAbbr(competitors[0]),
+                            homeScore: p1Sets,
+                            awayTeam: p2Name,
+                            awayAbbr: teamAbbr(competitors[1]),
+                            awayScore: p2Sets,
+                            lineScore: parts.isEmpty ? nil : parts.joined(separator: " "),
+                            detail: detail,
+                            kickoff: kickoff,
+                            competitionName: tournamentName,
+                            venue: venue,
+                            lines: [],
+                            raceLeaderboard: nil
+                        )
+                    }
+                }
+            }
+        } catch {
+            return nil
+        }
+        return nil
+    }
+
+    // MARK: - NRL (TheSportsDB)
+
+    /// TheSportsDB free key "3" is the documented test key; rate limit is
+    /// generous for a single-user app. League id 4416 = Australian NRL.
+    private static let theSportsDBKey = "3"
+    private static let nrlLeagueId = 4416
+
+    private static func fetchNRLMatch(title: String, publishedAt: Date) async -> MatchStats? {
+        guard let hints = parseTeams(from: title) else { return nil }
+        // Past 15 events from the league — good enough for "within the last
+        // 7 days" matching of a highlight video that just dropped.
+        let url = URL(string: "https://www.thesportsdb.com/api/v1/json/\(theSportsDBKey)/eventspastleague.php?id=\(nrlLeagueId)")!
+        do {
+            var req = URLRequest(url: url)
+            req.timeoutInterval = 10
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let events = root["events"] as? [[String: Any]] else { return nil }
+
+            let df = DateFormatter()
+            df.dateFormat = "yyyy-MM-dd"
+            df.timeZone = TimeZone(identifier: "UTC")
+
+            for event in events {
+                let homeTeam = (event["strHomeTeam"] as? String) ?? ""
+                let awayTeam = (event["strAwayTeam"] as? String) ?? ""
+                guard !homeTeam.isEmpty, !awayTeam.isEmpty else { continue }
+
+                let homeTokens = tokenize(homeTeam)
+                let awayTokens = tokenize(awayTeam)
+                let matched = (overlaps(homeTokens, hints.homeTokens) && overlaps(awayTokens, hints.awayTokens))
+                           || (overlaps(homeTokens, hints.awayTokens) && overlaps(awayTokens, hints.homeTokens))
+                if !matched { continue }
+
+                if let dateStr = event["dateEvent"] as? String,
+                   let eventDate = df.date(from: dateStr),
+                   abs(publishedAt.timeIntervalSince(eventDate)) > 5 * 86_400 {
+                    continue
+                }
+
+                let homeScore = Int((event["intHomeScore"] as? String) ?? "0") ?? 0
+                let awayScore = Int((event["intAwayScore"] as? String) ?? "0") ?? 0
+                let round: String = {
+                    if let r = event["intRound"] as? String, !r.isEmpty { return "Round \(r)" }
+                    return "FT"
+                }()
+                let venue = event["strVenue"] as? String
+                let kickoff: Date? = (event["dateEvent"] as? String).flatMap(df.date(from:))
+
+                return MatchStats(
+                    homeTeam: homeTeam,
+                    homeAbbr: abbreviate(homeTeam),
+                    homeScore: homeScore,
+                    awayTeam: awayTeam,
+                    awayAbbr: abbreviate(awayTeam),
+                    awayScore: awayScore,
+                    lineScore: nil,
+                    detail: round,
+                    kickoff: kickoff,
+                    competitionName: "NRL",
+                    venue: venue,
+                    lines: [],
+                    raceLeaderboard: nil
+                )
+            }
+        } catch {
+            return nil
+        }
+        return nil
+    }
+
+    private static func abbreviate(_ name: String) -> String {
+        // "Newcastle Knights" → "NEW", "St. George Illawara Dragons" → "STG"
+        let parts = name.split(separator: " ")
+        if parts.count == 1, parts[0].count >= 3 { return String(parts[0].prefix(3)).uppercased() }
+        return parts.prefix(2).compactMap { $0.first }.map(String.init).joined().uppercased()
     }
 
     // MARK: - F1 race fetcher
