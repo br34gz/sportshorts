@@ -6,22 +6,22 @@ struct VideoCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 10) {
                 ZStack(alignment: .topLeading) {
                     AsyncImage(url: item.thumbnailURL) { phase in
                         switch phase {
                         case .success(let img):
-                            // Preserve the thumbnail's native aspect ratio. YouTube
-                            // serves both 16:9 (mqdefault.jpg) and 4:3 (hqdefault.jpg);
-                            // forcing 16:9 was stretching the 4:3 ones.
+                            // Preserve native aspect ratio — YouTube serves both 16:9
+                            // and 4:3, forcing one stretches the other.
                             img.resizable().scaledToFit()
                         default:
-                            Rectangle().fill(.tertiary).aspectRatio(16/9, contentMode: .fit)
+                            Rectangle().fill(Color.white.opacity(0.06)).aspectRatio(16/9, contentMode: .fit)
                         }
                     }
                     .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-                    // Sport icon — top-left, mirrors where the YouTube watermark sits top-right.
+                    // Sport icon + competition tag — top-left overlay on thumbnail.
                     HStack(spacing: 6) {
                         Image(systemName: item.sportIcon)
                             .font(.subheadline.weight(.semibold))
@@ -33,34 +33,29 @@ struct VideoCard: View {
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(.ultraThinMaterial, in: Capsule(style: .continuous))
+                    .background(.black.opacity(0.55), in: Capsule(style: .continuous))
                     .padding(10)
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(item.title)
                         .font(.headline)
+                        .foregroundStyle(.white)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                     HStack(spacing: 6) {
                         Text(item.channelTitle)
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.6))
                             .lineLimit(1)
                         Spacer()
                         Text(item.publishedAt, format: .relative(presentation: .numeric))
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.white.opacity(0.6))
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 2)
             }
-            .background {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .glassEffect(.regular.interactive())
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(.plain)
     }

@@ -15,8 +15,9 @@ struct OnboardingFlow: View {
                     step = .sports
                 })
             case .sports:
-                SportsStep(onContinue: { selected in
-                    session.followedSportIds = selected
+                SportsStep(onContinue: { pair in
+                    session.followedSportIds = pair.sports
+                    session.followedCompetitionIds = pair.comps
                 })
             }
         }
@@ -98,12 +99,14 @@ private struct CountryRow: View {
     }
 }
 
-// MARK: - Sports picker (sport-level only; broadcasters chosen by country)
+// MARK: - Sports picker
 
 private struct SportsStep: View {
     @Environment(AppSession.self) private var session
-    let onContinue: (Set<String>) -> Void
-    @State private var picked = Set<String>()
+    let onContinue: ((sports: Set<String>, comps: Set<String>)) -> Void
+    @State private var pickedSports = Set<String>()
+    @State private var pickedComps = Set<String>()
+    @State private var expanded = Set<String>()
     @State private var loading = true
 
     var body: some View {
@@ -112,7 +115,7 @@ private struct SportsStep: View {
             Text("Pick your sports.")
                 .font(.system(size: 36, weight: .bold, design: .rounded))
                 .padding(.horizontal, 24)
-            Text("We'll pull highlights from every major broadcaster in \(session.country?.name ?? "your country"), then filter to just the sports you've picked.")
+            Text("We'll pull highlights from every major broadcaster in \(session.country?.name ?? "your country"). Expand a sport to narrow it to specific competitions.")
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 24)
@@ -124,12 +127,26 @@ private struct SportsStep: View {
                 ScrollView {
                     VStack(spacing: 10) {
                         ForEach(session.catalog.sports) { sport in
-                            SportToggleRow(
+                            OnboardingSportRow(
                                 sport: sport,
-                                isOn: picked.contains(sport.id),
-                                toggle: {
-                                    if picked.contains(sport.id) { picked.remove(sport.id) }
-                                    else { picked.insert(sport.id) }
+                                expanded: expanded.contains(sport.id),
+                                pickedSports: pickedSports,
+                                pickedComps: pickedComps,
+                                toggleExpanded: {
+                                    if expanded.contains(sport.id) { expanded.remove(sport.id) }
+                                    else { expanded.insert(sport.id) }
+                                },
+                                toggleSport: {
+                                    if pickedSports.contains(sport.id) {
+                                        pickedSports.remove(sport.id)
+                                        for c in sport.competitions { pickedComps.remove(c.id) }
+                                    } else {
+                                        pickedSports.insert(sport.id)
+                                    }
+                                },
+                                toggleComp: { compId in
+                                    if pickedComps.contains(compId) { pickedComps.remove(compId) }
+                                    else { pickedComps.insert(compId) }
                                 }
                             )
                         }
@@ -139,7 +156,7 @@ private struct SportsStep: View {
                 }
             }
 
-            Button { onContinue(picked) } label: {
+            Button { onContinue((pickedSports, pickedComps)) } label: {
                 Text("Show me my highlights")
                     .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
             }
@@ -147,8 +164,8 @@ private struct SportsStep: View {
             .tint(.white)
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
-            .disabled(picked.isEmpty)
-            .opacity(picked.isEmpty ? 0.4 : 1)
+            .disabled(pickedSports.isEmpty)
+            .opacity(pickedSports.isEmpty ? 0.4 : 1)
         }
         .task {
             if session.catalog.sports.isEmpty {
@@ -159,24 +176,68 @@ private struct SportsStep: View {
     }
 }
 
-private struct SportToggleRow: View {
+private struct OnboardingSportRow: View {
     let sport: Sport
-    let isOn: Bool
-    let toggle: () -> Void
+    let expanded: Bool
+    let pickedSports: Set<String>
+    let pickedComps: Set<String>
+    let toggleExpanded: () -> Void
+    let toggleSport: () -> Void
+    let toggleComp: (String) -> Void
+
+    private var sportOn: Bool { pickedSports.contains(sport.id) }
+    private var hasMultipleComps: Bool { sport.competitions.count > 1 }
+    private var pickedCompCount: Int { sport.competitions.filter { pickedComps.contains($0.id) }.count }
 
     var body: some View {
-        Button(action: toggle) {
-            HStack(spacing: 14) {
-                Image(systemName: sport.icon).font(.title3).foregroundStyle(.tint).frame(width: 28)
-                Text(sport.label).font(.headline).foregroundStyle(.primary)
-                Spacer()
-                Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+        VStack(spacing: 0) {
+            Button(action: toggleSport) {
+                HStack(spacing: 14) {
+                    Image(systemName: sport.icon).font(.title3).foregroundStyle(.tint).frame(width: 28)
+                    Text(sport.label).font(.headline).foregroundStyle(.primary)
+                    Spacer()
+                    if sportOn && hasMultipleComps {
+                        Text(pickedCompCount == 0 ? "All" : "\(pickedCompCount)/\(sport.competitions.count)")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(Capsule().fill(Color.accentColor.opacity(0.25)))
+                            .foregroundStyle(.tint)
+                        Button(action: toggleExpanded) {
+                            Image(systemName: "chevron.down")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .rotationEffect(.degrees(expanded ? 180 : 0))
+                                .frame(width: 28, height: 28)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Image(systemName: sportOn ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(sportOn ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                }
+                .padding(.horizontal, 18).padding(.vertical, 14)
             }
-            .padding(.horizontal, 18).padding(.vertical, 14)
+            .buttonStyle(.plain)
+
+            if sportOn && hasMultipleComps && expanded {
+                VStack(spacing: 4) {
+                    ForEach(sport.competitions) { comp in
+                        Button { toggleComp(comp.id) } label: {
+                            HStack {
+                                Text(comp.label).font(.subheadline).foregroundStyle(.primary)
+                                Spacer()
+                                Image(systemName: pickedComps.contains(comp.id) ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(pickedComps.contains(comp.id) ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                            }
+                            .padding(.leading, 46).padding(.trailing, 18).padding(.vertical, 8)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.bottom, 8)
+            }
         }
-        .buttonStyle(.plain)
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(.ultraThinMaterial)

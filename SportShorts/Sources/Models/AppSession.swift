@@ -13,6 +13,14 @@ final class AppSession {
         didSet { persistSet(followedSportIds, key: "sportshorts.followed_sports") }
     }
 
+    /// Optional per-sport refinement: if any of a sport's competitions appear
+    /// in this set, the feed is narrowed to only those competitions for that
+    /// sport. Sports with no competition IDs in the set show all videos of
+    /// that sport.
+    var followedCompetitionIds: Set<String> {
+        didSet { persistSet(followedCompetitionIds, key: "sportshorts.followed_comps") }
+    }
+
     /// Channels the user added manually via Settings (not in the catalog).
     var userAddedChannels: [YouTubeChannel] {
         didSet {
@@ -37,6 +45,7 @@ final class AppSession {
         self.country = Country.supported.first { $0.code == code }
 
         self.followedSportIds = Self.loadSet("sportshorts.followed_sports")
+        self.followedCompetitionIds = Self.loadSet("sportshorts.followed_comps")
         self.hiddenChannelIds = Self.loadSet("sportshorts.hidden_channels")
 
         if let data = UserDefaults.standard.data(forKey: "sportshorts.user_channels"),
@@ -55,7 +64,9 @@ final class AppSession {
             let translated = legacyIds.compactMap(Self.legacyCompToSport(_:))
             if !translated.isEmpty {
                 self.followedSportIds = Set(translated)
+                self.followedCompetitionIds = legacyIds  // preserve user's competition picks
                 persistSet(followedSportIds, key: "sportshorts.followed_sports")
+                persistSet(followedCompetitionIds, key: "sportshorts.followed_comps")
             }
             UserDefaults.standard.removeObject(forKey: "sportshorts.followed_ids")
         }
@@ -70,6 +81,7 @@ final class AppSession {
     func resetApp() {
         country = nil
         followedSportIds = []
+        followedCompetitionIds = []
         userAddedChannels = []
         hiddenChannelIds = []
         feed = []

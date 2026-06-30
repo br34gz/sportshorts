@@ -10,11 +10,20 @@ enum FeedFetcher {
     /// Final list is sorted by recency.
     static func fetch(channels: [YouTubeChannel],
                       followedSports: Set<String>,
+                      followedCompetitions: Set<String>,
                       catalog: Catalog) async throws -> [VideoItem] {
         guard !channels.isEmpty else { return [] }
 
         // Index sports for quick label lookup post-classification.
         let sportsById = Dictionary(uniqueKeysWithValues: catalog.sports.map { ($0.id, $0) })
+
+        // Per-sport competition filter: only enforce when the user has picked
+        // at least one comp for that sport. Sports without picks pass through.
+        var compsPickedPerSport: [String: Set<String>] = [:]
+        for sport in catalog.sports {
+            let picked = Set(sport.competitions.map(\.id)).intersection(followedCompetitions)
+            if !picked.isEmpty { compsPickedPerSport[sport.id] = picked }
+        }
 
         var merged: [VideoItem] = []
         await withTaskGroup(of: [VideoItem].self) { group in
@@ -30,10 +39,18 @@ enum FeedFetcher {
         let deduped = merged.filter { seen.insert($0.id).inserted }
         let inSport = deduped.filter { followedSports.contains($0.sportId) }
 
-        // 7-day recency window — the daily list shouldn't show ancient highlights
-        // even if a channel's RSS still has them.
+        // Apply per-sport competition narrowing.
+        let inComp = inSport.filter { item in
+            guard let pickedComps = compsPickedPerSport[item.sportId] else {
+                return true  // user hasn't picked specific competitions for this sport
+            }
+            guard let comp = item.competitionId else { return false }
+            return pickedComps.contains(comp)
+        }
+
+        // 7-day recency window.
         let cutoff = Calendar(identifier: .gregorian).date(byAdding: .day, value: -7, to: Date()) ?? Date(timeIntervalSinceNow: -7 * 86_400)
-        let recent = inSport.filter { $0.publishedAt >= cutoff }
+        let recent = inComp.filter { $0.publishedAt >= cutoff }
 
         return recent.sorted { $0.publishedAt > $1.publishedAt }
     }

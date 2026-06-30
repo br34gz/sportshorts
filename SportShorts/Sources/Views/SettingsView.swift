@@ -85,28 +85,107 @@ struct SettingsView: View {
 
 private struct SportsSettingsView: View {
     @Environment(AppSession.self) private var session
+    @State private var expanded: Set<String> = []
 
     var body: some View {
         Form {
             Section {
                 ForEach(session.catalog.sports) { sport in
-                    Toggle(isOn: Binding(
-                        get: { session.followedSportIds.contains(sport.id) },
-                        set: { newVal in
-                            if newVal { session.followedSportIds.insert(sport.id) }
-                            else { session.followedSportIds.remove(sport.id) }
+                    SportSettingsRow(
+                        sport: sport,
+                        expanded: expanded.contains(sport.id),
+                        followedSports: session.followedSportIds,
+                        followedComps: session.followedCompetitionIds,
+                        toggleExpanded: {
+                            if expanded.contains(sport.id) { expanded.remove(sport.id) }
+                            else { expanded.insert(sport.id) }
+                        },
+                        toggleSport: {
+                            if session.followedSportIds.contains(sport.id) {
+                                session.followedSportIds.remove(sport.id)
+                                // Drop any competition picks for this sport.
+                                let compIds = Set(sport.competitions.map(\.id))
+                                session.followedCompetitionIds.subtract(compIds)
+                            } else {
+                                session.followedSportIds.insert(sport.id)
+                            }
+                        },
+                        toggleComp: { compId in
+                            if session.followedCompetitionIds.contains(compId) {
+                                session.followedCompetitionIds.remove(compId)
+                            } else {
+                                session.followedCompetitionIds.insert(compId)
+                            }
                         }
-                    )) {
-                        HStack(spacing: 8) {
-                            Image(systemName: sport.icon).foregroundStyle(.tint).frame(width: 22)
-                            Text(sport.label)
-                        }
-                    }
+                    )
                 }
             } footer: {
-                Text("Highlights from any broadcaster will be filtered to just the sports you follow.")
+                Text("Toggle a sport on to follow it. Expand a sport to narrow it to specific competitions; with no competitions picked, all of that sport's videos show.")
             }
         }
         .navigationTitle("Sports")
+    }
+}
+
+private struct SportSettingsRow: View {
+    let sport: Sport
+    let expanded: Bool
+    let followedSports: Set<String>
+    let followedComps: Set<String>
+    let toggleExpanded: () -> Void
+    let toggleSport: () -> Void
+    let toggleComp: (String) -> Void
+
+    private var sportOn: Bool { followedSports.contains(sport.id) }
+    private var hasMultipleComps: Bool { sport.competitions.count > 1 }
+    private var pickedCompCount: Int { sport.competitions.filter { followedComps.contains($0.id) }.count }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header row: sport toggle + chevron if expandable.
+            HStack(spacing: 10) {
+                Image(systemName: sport.icon).foregroundStyle(.tint).frame(width: 22)
+                Text(sport.label)
+                Spacer()
+                if sportOn && hasMultipleComps {
+                    if pickedCompCount > 0 {
+                        Text("\(pickedCompCount) of \(sport.competitions.count)")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        Text("All")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Button(action: toggleExpanded) {
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(expanded ? 180 : 0))
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                Toggle("", isOn: Binding(get: { sportOn }, set: { _ in toggleSport() }))
+                    .labelsHidden()
+            }
+
+            if sportOn && hasMultipleComps && expanded {
+                VStack(spacing: 0) {
+                    ForEach(sport.competitions) { comp in
+                        Divider().padding(.leading, 32)
+                        Toggle(isOn: Binding(
+                            get: { followedComps.contains(comp.id) },
+                            set: { _ in toggleComp(comp.id) }
+                        )) {
+                            Text(comp.label)
+                                .font(.subheadline)
+                                .padding(.leading, 32)
+                        }
+                        .padding(.vertical, 6)
+                    }
+                }
+                .padding(.top, 4)
+            }
+        }
     }
 }
