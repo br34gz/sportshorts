@@ -9,18 +9,9 @@ struct BrowseView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(sortedSports) { sport in
-                        NavigationLink {
-                            SportFeedView(sport: sport, playing: $playing)
-                        } label: {
-                            SportTile(
-                                sport: sport,
-                                videos: videosForSport(sport)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    section(title: "Following", sports: followingSports)
+                    section(title: "Not following", sports: notFollowingSports)
                 }
                 .padding(.horizontal, 12)
                 .padding(.top, 8)
@@ -32,15 +23,47 @@ struct BrowseView: View {
         }
     }
 
-    /// Every sport in the catalog, sorted by the recency of its most-recent
-    /// video in the current 7-day feed. Sports with zero clips fall to the
-    /// bottom in catalog order so the user can still see + tap them.
-    private var sortedSports: [Sport] {
-        let mostRecentBySport = Dictionary(grouping: session.feed, by: { $0.sportId })
+    @ViewBuilder
+    private func section(title: String, sports: [Sport]) -> some View {
+        if !sports.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 4)
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(sports) { sport in
+                        NavigationLink {
+                            SportFeedView(sport: sport, playing: $playing)
+                        } label: {
+                            SportTile(
+                                sport: sport,
+                                videoCount: videoCount(for: sport)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    /// All sports the user follows, sorted by their most-recent clip first.
+    private var followingSports: [Sport] {
+        sortedSports(within: session.catalog.sports.filter { session.followedSportIds.contains($0.id) })
+    }
+
+    /// Every other sport, also sorted by most-recent clip first.
+    private var notFollowingSports: [Sport] {
+        sortedSports(within: session.catalog.sports.filter { !session.followedSportIds.contains($0.id) })
+    }
+
+    private func sortedSports(within sports: [Sport]) -> [Sport] {
+        let mostRecent = Dictionary(grouping: session.feed, by: { $0.sportId })
             .mapValues { $0.map(\.publishedAt).max() ?? .distantPast }
-        return session.catalog.sports.sorted { a, b in
-            let av = mostRecentBySport[a.id] ?? .distantPast
-            let bv = mostRecentBySport[b.id] ?? .distantPast
+        return sports.sorted { a, b in
+            let av = mostRecent[a.id] ?? .distantPast
+            let bv = mostRecent[b.id] ?? .distantPast
             if av == bv {
                 let ai = session.catalog.sports.firstIndex(where: { $0.id == a.id }) ?? 0
                 let bi = session.catalog.sports.firstIndex(where: { $0.id == b.id }) ?? 0
@@ -50,97 +73,46 @@ struct BrowseView: View {
         }
     }
 
-    private func videosForSport(_ sport: Sport) -> [VideoItem] {
-        session.feed.filter { $0.sportId == sport.id }
+    private func videoCount(for sport: Sport) -> Int {
+        session.feed.lazy.filter { $0.sportId == sport.id }.count
     }
 }
 
-// MARK: - Sport tile (Browse grid)
+// MARK: - Sport tile
 
-/// A sport tile shows a stacked-card preview: the most-recent video's
-/// thumbnail dominates, with up to two slightly offset/scaled thumbnails
-/// behind it to suggest "more like this". Sport icon + name overlay on top,
-/// count badge in the corner. Empty sports show a flat placeholder.
+/// Plain square tile: a tinted background with the sport icon at the centre
+/// and the sport name + count below. No thumbnail clutter — easier to scan
+/// at a glance.
 private struct SportTile: View {
     let sport: Sport
-    let videos: [VideoItem]
-
-    private var count: Int { videos.count }
-    private var primary: VideoItem? { videos.first }
-    private var second: VideoItem? { videos.dropFirst().first }
-    private var third: VideoItem? { videos.dropFirst(2).first }
+    let videoCount: Int
 
     var body: some View {
-        ZStack {
-            if let third {
-                ThumbBackdrop(item: third)
-                    .offset(x: 6, y: 6)
-                    .scaleEffect(0.92)
-                    .opacity(0.45)
+        VStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.07))
+                Image(systemName: sport.icon)
+                    .font(.system(size: 38, weight: .semibold))
+                    .foregroundStyle(.tint)
             }
-            if let second {
-                ThumbBackdrop(item: second)
-                    .offset(x: 3, y: 3)
-                    .scaleEffect(0.96)
-                    .opacity(0.7)
-            }
-            if let primary {
-                ThumbBackdrop(item: primary)
-            } else {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.white.opacity(0.06))
-            }
-
-            // Foreground content
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Image(systemName: sport.icon)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white)
-                    Text(sport.label)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(1)
-                }
-                .padding(.horizontal, 8).padding(.vertical, 4)
-                .background(.black.opacity(0.55), in: Capsule())
-                Spacer()
-                HStack {
-                    Spacer()
-                    Text("\(count)")
+            .aspectRatio(1.0, contentMode: .fit)
+            .overlay(alignment: .topTrailing) {
+                if videoCount > 0 {
+                    Text("\(videoCount)")
                         .font(.caption2.weight(.bold).monospacedDigit())
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 7).padding(.vertical, 2)
-                        .background(.black.opacity(0.6), in: Capsule())
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(.black.opacity(0.65), in: Capsule())
+                        .padding(6)
                 }
             }
-            .padding(8)
-        }
-        .aspectRatio(1.0, contentMode: .fit)
-    }
-}
 
-private struct ThumbBackdrop: View {
-    let item: VideoItem
-
-    var body: some View {
-        ZStack {
-            AsyncImage(url: item.thumbnailURL) { phase in
-                switch phase {
-                case .success(let img):
-                    img.resizable().scaledToFill()
-                default:
-                    Rectangle().fill(Color.white.opacity(0.08))
-                }
-            }
-            // Darken so the foreground text reads clearly on busy thumbnails.
-            Rectangle().fill(Color.black.opacity(0.28))
+            Text(sport.label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 0.5)
-        )
     }
 }
 

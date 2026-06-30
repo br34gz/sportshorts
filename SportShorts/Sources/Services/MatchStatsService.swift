@@ -17,12 +17,23 @@ struct MatchStats: Hashable {
     let competitionName: String?
     let venue: String?
     let lines: [StatLine]
+    /// Set instead of homeTeam/awayTeam when the result is a race (F1 etc).
+    /// When present, the StatsPanel renders this leaderboard rather than the
+    /// team-vs-team scoreblock.
+    let raceLeaderboard: [RaceEntry]?
 
     struct StatLine: Hashable {
         let label: String
         let home: String
         let away: String
         let homeRatio: Double?
+    }
+
+    struct RaceEntry: Hashable {
+        let position: Int
+        let driverName: String
+        let teamName: String?
+        let timeOrGap: String?
     }
 }
 
@@ -69,6 +80,10 @@ enum MatchStatsService {
         "wimbledon":.init(espnSport: "tennis", espnLeague: "atp", stats: tennisStats),
         "us_open":  .init(espnSport: "tennis", espnLeague: "atp", stats: tennisStats),
         "rg":       .init(espnSport: "tennis", espnLeague: "atp", stats: tennisStats),
+
+        // Formula 1 — handled via the dedicated race code path below
+        // (raceLeaderboard instead of homeTeam/awayTeam). stats list unused.
+        "f1": .init(espnSport: "racing", espnLeague: "f1", stats: []),
     ]
 
     private static let soccerStats: [(String, String, Bool)] = [
@@ -153,9 +168,15 @@ enum MatchStatsService {
         configs[competitionId] != nil
     }
 
-    /// Try to find a completed match matching the given video.
+    /// Try to find a completed match (or race, for F1) for the given video.
     static func fetchMatch(title: String, publishedAt: Date, competitionId: String) async -> MatchStats? {
         guard let config = configs[competitionId] else { return nil }
+
+        // F1 is a race, not a team-vs-team match — different fetch path.
+        if competitionId == "f1" {
+            return await fetchRace(config: config, publishedAt: publishedAt)
+        }
+
         guard let teamHints = parseTeams(from: title) else { return nil }
 
         let dayFormatter: DateFormatter = {
@@ -174,6 +195,97 @@ enum MatchStatsService {
             }
         }
         return nil
+    }
+
+    // MARK: - F1 race fetcher
+
+    private static func fetchRace(config: SportConfig, publishedAt: Date) async -> MatchStats? {
+        let dayFormatter: DateFormatter = {
+            let f = DateFormatter()
+            f.timeZone = TimeZone(identifier: "UTC")
+            f.dateFormat = "yyyyMMdd"
+            return f
+        }()
+        // F1 highlight videos can be posted hours after the race; check the
+        // race day + the two days before.
+        for delta in [0, -1, -2, -3] {
+            let day = Calendar(identifier: .gregorian).date(byAdding: .day, value: delta, to: publishedAt) ?? publishedAt
+            let dateStr = dayFormatter.string(from: day)
+            if let stats = await fetchRaceForDate(config: config, dateStr: dateStr) {
+                return stats
+            }
+        }
+        return nil
+    }
+
+    private static func fetchRaceForDate(config: SportConfig, dateStr: String) async -> MatchStats? {
+        let url = URL(string: "https://site.api.espn.com/apis/site/v2/sports/\(config.espnSport)/\(config.espnLeague)/scoreboard?dates=\(dateStr)")!
+        do {
+            var req = URLRequest(url: url)
+            req.timeoutInterval = 8
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let events = root["events"] as? [[String: Any]],
+                  let event = events.first else { return nil }
+
+            guard let stype = (event["status"] as? [String: Any])?["type"] as? [String: Any],
+                  (stype["completed"] as? Bool) ?? false else { return nil }
+
+            let raceName = (event["name"] as? String) ?? "Race"
+            let detail = (stype["detail"] as? String) ?? "Final"
+
+            guard let competition = (event["competitions"] as? [[String: Any]])?.first,
+                  let competitors = competition["competitors"] as? [[String: Any]] else { return nil }
+
+            let entries: [MatchStats.RaceEntry] = competitors
+                .sorted { (a, b) in
+                    let ao = (a["order"] as? Int) ?? Int.max
+                    let bo = (b["order"] as? Int) ?? Int.max
+                    return ao < bo
+                }
+                .prefix(10)
+                .map { c in
+                    let athlete = c["athlete"] as? [String: Any]
+                    let team = c["team"] as? [String: Any]
+                    let pos = (c["order"] as? Int) ?? 0
+                    return MatchStats.RaceEntry(
+                        position: pos,
+                        driverName: (athlete?["displayName"] as? String) ?? "?",
+                        teamName: team?["displayName"] as? String,
+                        timeOrGap: (c["score"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                    )
+                }
+
+            guard !entries.isEmpty else { return nil }
+
+            var kickoff: Date?
+            if let iso = event["date"] as? String {
+                kickoff = ISO8601DateFormatter().date(from: iso)
+            }
+            let venue = (competition["venue"] as? [String: Any])?["fullName"] as? String
+
+            // Stuff race header into the homeTeam/competitionName slots so
+            // existing StatsPanel infrastructure has something sensible to
+            // render when raceLeaderboard isn't being shown (it always is for
+            // F1, but defensive defaults).
+            return MatchStats(
+                homeTeam: raceName,
+                homeAbbr: "",
+                homeScore: 0,
+                awayTeam: "",
+                awayAbbr: "",
+                awayScore: 0,
+                lineScore: nil,
+                detail: detail,
+                kickoff: kickoff,
+                competitionName: raceName,
+                venue: venue,
+                lines: [],
+                raceLeaderboard: entries
+            )
+        } catch {
+            return nil
+        }
     }
 
     // MARK: - Internal
@@ -244,7 +356,8 @@ enum MatchStatsService {
                     kickoff: kickoff,
                     competitionName: (event["league"] as? [String: Any])?["name"] as? String,
                     venue: venue,
-                    lines: lines
+                    lines: lines,
+                    raceLeaderboard: nil
                 )
             }
         } catch {

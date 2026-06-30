@@ -365,20 +365,79 @@ struct StatsPanel: View {
             LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                 Section {
                     VStack(spacing: 10) {
-                        statsLines
+                        if stats.raceLeaderboard != nil {
+                            raceBody
+                        } else {
+                            statsLines
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
                     .padding(.bottom, 24)
                 } header: {
                     VStack(spacing: 12) {
-                        scoreBlock
+                        if let entries = stats.raceLeaderboard {
+                            raceHeader(entries: entries)
+                        } else {
+                            scoreBlock
+                        }
                         Rectangle().fill(Color.white.opacity(0.15)).frame(height: 0.5)
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 14)
                     .padding(.bottom, 4)
                     .background(.ultraThinMaterial)
+                }
+            }
+        }
+    }
+
+    private func raceHeader(entries: [MatchStats.RaceEntry]) -> some View {
+        VStack(spacing: 4) {
+            Text(stats.competitionName ?? "Race")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+            Text(stats.detail)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.6))
+            if let winner = entries.first {
+                Text("Winner: \(winner.driverName)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.top, 4)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var raceBody: some View {
+        if let entries = stats.raceLeaderboard {
+            VStack(spacing: 8) {
+                ForEach(entries, id: \.self) { entry in
+                    HStack(alignment: .center, spacing: 12) {
+                        Text("\(entry.position)")
+                            .font(.callout.weight(.bold).monospacedDigit())
+                            .foregroundStyle(.white)
+                            .frame(width: 28, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(entry.driverName)
+                                .font(.callout.weight(.semibold))
+                                .foregroundStyle(.white)
+                            if let team = entry.teamName, !team.isEmpty {
+                                Text(team)
+                                    .font(.caption2)
+                                    .foregroundStyle(.white.opacity(0.55))
+                            }
+                        }
+                        Spacer()
+                        if let gap = entry.timeOrGap {
+                            Text(gap)
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
             }
         }
