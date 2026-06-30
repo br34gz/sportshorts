@@ -47,11 +47,29 @@ enum FeedFetcher {
 
         var byId: [String: RSSParser.Entry] = [:]
         for e in rssEntries { byId[e.id] = e }
-        // Scraped wins on collision — its publishedAt is more recent ("relative")
-        // and RSS sometimes lags by minutes.
-        for e in scrapedEntries { byId[e.id] = e }
+        // Scraped wins on collision EXCEPT when scraped would clobber a
+        // known view count with -1 — keep the RSS-sourced views in that case
+        // so the premiere filter has the better signal.
+        for e in scrapedEntries {
+            if let existing = byId[e.id], existing.views >= 0, e.views < 0 {
+                // Preserve RSS views, take scraped title/publishedAt if they're set.
+                byId[e.id] = RSSParser.Entry(
+                    id: e.id,
+                    title: e.title.isEmpty ? existing.title : e.title,
+                    channelTitle: e.channelTitle.isEmpty ? existing.channelTitle : e.channelTitle,
+                    publishedAt: e.publishedAt > existing.publishedAt ? e.publishedAt : existing.publishedAt,
+                    thumbnailURL: e.thumbnailURL ?? existing.thumbnailURL,
+                    views: existing.views
+                )
+            } else {
+                byId[e.id] = e
+            }
+        }
 
         return byId.values.compactMap { entry -> VideoItem? in
+            // Drop premiere stubs / upcoming videos — views==0 is the giveaway.
+            // -1 means "unknown" (scraper without a parsed view count) → keep.
+            if entry.views == 0 { return nil }
             guard HighlightsFilter.isMatchHighlight(title: entry.title, allowSpoilers: allowSpoilers) else { return nil }
             guard let match = SportClassifier.classify(title: entry.title, channel: channel, catalog: catalog),
                   let sport = sportsById[match.sport.id] else { return nil }

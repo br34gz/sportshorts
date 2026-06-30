@@ -60,25 +60,51 @@ enum ChannelVideoScraper {
         guard !title.isEmpty else { return nil }
 
         var publishedAgo: String?
+        var viewText: String?
+        var isPremiere = false
         if let rows = (((metadata?["metadata"] as? [String: Any])?["contentMetadataViewModel"] as? [String: Any])?["metadataRows"] as? [[String: Any]]) {
-            outer: for row in rows {
+            for row in rows {
                 let parts = row["metadataParts"] as? [[String: Any]] ?? []
                 for p in parts {
-                    if let t = (p["text"] as? [String: Any])?["content"] as? String,
-                       t.contains("ago") {
-                        publishedAgo = t
-                        break outer
+                    if let t = (p["text"] as? [String: Any])?["content"] as? String {
+                        let lower = t.lowercased()
+                        if lower.contains("ago") { publishedAgo = t }
+                        else if lower.contains("view") { viewText = t }
+                        else if lower.contains("premiere") || lower.contains("scheduled") || lower.contains("starts in") {
+                            isPremiere = true
+                        }
                     }
                 }
             }
         }
+        // Inspect the thumbnail overlays for an UPCOMING / LIVE badge — that's
+        // how YouTube labels premieres on the videos tab.
+        if !isPremiere,
+           let overlays = ((lockup["contentImage"] as? [String: Any])?["thumbnailViewModel"] as? [String: Any])?["overlays"] as? [[String: Any]] {
+            for overlay in overlays {
+                let badges = ((overlay["thumbnailBottomOverlayViewModel"] as? [String: Any])?["badges"] as? [[String: Any]]) ?? []
+                for b in badges {
+                    let style = (b["thumbnailBadgeViewModel"] as? [String: Any])?["badgeStyle"] as? String ?? ""
+                    if style.contains("UPCOMING") || style.contains("LIVE") { isPremiere = true }
+                }
+            }
+        }
+
+        // Views: "1.2K views" → 1200, "566 views" → 566. -1 keeps "unknown"
+        // for scraped entries that don't expose a count yet (e.g. premieres).
+        let views: Int = {
+            if isPremiere { return 0 }
+            guard let viewText else { return -1 }
+            return parseViewCount(viewText)
+        }()
 
         return RSSParser.Entry(
             id: videoId,
             title: title,
             channelTitle: channelName,
             publishedAt: parseRelativeDate(publishedAgo),
-            thumbnailURL: URL(string: "https://i.ytimg.com/vi/\(videoId)/mqdefault.jpg")
+            thumbnailURL: URL(string: "https://i.ytimg.com/vi/\(videoId)/mqdefault.jpg"),
+            views: views
         )
     }
 
@@ -112,6 +138,28 @@ enum ChannelVideoScraper {
         }
         guard let end = endIndex else { return nil }
         return String(html[after..<end])
+    }
+
+    /// Parse a view-count string from the videos tab: "1.2K views" → 1200,
+    /// "566 views" → 566, "2.5M views" → 2_500_000.
+    private static func parseViewCount(_ s: String) -> Int {
+        let lower = s.lowercased()
+        let cleaned = lower.replacingOccurrences(of: " views", with: "")
+                           .replacingOccurrences(of: ",", with: "")
+                           .trimmingCharacters(in: .whitespaces)
+        if cleaned.hasSuffix("k") {
+            let num = Double(cleaned.dropLast()) ?? 0
+            return Int(num * 1_000)
+        }
+        if cleaned.hasSuffix("m") {
+            let num = Double(cleaned.dropLast()) ?? 0
+            return Int(num * 1_000_000)
+        }
+        if cleaned.hasSuffix("b") {
+            let num = Double(cleaned.dropLast()) ?? 0
+            return Int(num * 1_000_000_000)
+        }
+        return Int(cleaned) ?? -1
     }
 
     /// "1 hour ago", "6 hours ago", "2 days ago", "1 week ago", etc.

@@ -10,6 +10,11 @@ enum RSSParser {
         let channelTitle: String
         let publishedAt: Date
         let thumbnailURL: URL?
+        /// View count from `media:statistics`. -1 means unknown (e.g. scraped
+        /// entries that didn't expose it). 0 means premiere/upcoming/just
+        /// uploaded — FeedFetcher uses this to filter out premiere stubs
+        /// that haven't aired yet.
+        let views: Int
     }
 
     static func parse(_ data: Data, channel: YouTubeChannel) throws -> [Entry] {
@@ -34,6 +39,7 @@ enum RSSParser {
         private var entryAuthor: String?
         private var entryPublished: Date?
         private var entryThumbnail: URL?
+        private var entryViews: Int = -1
 
         private static let iso8601: ISO8601DateFormatter = {
             let f = ISO8601DateFormatter()
@@ -51,9 +57,13 @@ enum RSSParser {
             if elementName == "entry" {
                 inEntry = true
                 entryId = nil; entryTitle = nil; entryAuthor = nil; entryPublished = nil; entryThumbnail = nil
+                entryViews = -1
             }
             if inEntry, elementName == "media:thumbnail", let urlStr = attributeDict["url"] {
                 entryThumbnail = URL(string: urlStr)
+            }
+            if inEntry, elementName == "media:statistics", let viewsStr = attributeDict["views"] {
+                entryViews = Int(viewsStr) ?? -1
             }
         }
 
@@ -76,7 +86,8 @@ enum RSSParser {
                             title: title,
                             channelTitle: entryAuthor ?? fallbackChannelTitle,
                             publishedAt: published,
-                            thumbnailURL: entryThumbnail ?? URL(string: "https://i.ytimg.com/vi/\(id)/mqdefault.jpg")
+                            thumbnailURL: entryThumbnail ?? URL(string: "https://i.ytimg.com/vi/\(id)/mqdefault.jpg"),
+                            views: entryViews
                         ))
                     }
                     inEntry = false
