@@ -263,8 +263,8 @@ private struct ChannelFollowRow: View {
 
     var body: some View {
         let ch = session.channel(byId: channelId)
-        let following = session.isFollowing(channelId: channelId)
-        let canToggle = ch != nil   // unknown channels can't be (un)hidden
+        let visible = session.isFollowing(channelId: channelId)  // misnomer in the API; means "not hidden"
+        let canToggle = ch != nil
 
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
@@ -280,18 +280,18 @@ private struct ChannelFollowRow: View {
             Spacer()
             Button {
                 guard canToggle else { return }
-                session.setFollowing(!following, forChannelId: channelId)
+                session.setFollowing(!visible, forChannelId: channelId)
             } label: {
-                Text(following ? "Following" : "Follow")
+                Text(visible ? "Hide" : "Unhide")
                     .font(.caption.weight(.semibold))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
                     .background(
-                        Capsule().fill(following ? Color.white.opacity(0.12) : Color.accentColor)
+                        Capsule().fill(visible ? Color.white.opacity(0.12) : Color.accentColor)
                     )
-                    .foregroundStyle(following ? AnyShapeStyle(.white) : AnyShapeStyle(.black))
+                    .foregroundStyle(visible ? AnyShapeStyle(.white) : AnyShapeStyle(.black))
                     .overlay(
-                        Capsule().stroke(Color.white.opacity(following ? 0.25 : 0), lineWidth: 0.5)
+                        Capsule().stroke(Color.white.opacity(visible ? 0.25 : 0), lineWidth: 0.5)
                     )
             }
             .buttonStyle(.plain)
