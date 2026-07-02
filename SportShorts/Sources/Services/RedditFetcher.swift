@@ -45,6 +45,82 @@ enum RedditFetcher {
         return merged
     }
 
+    // MARK: - Diagnostic report (used by Sources → Reddit → Debug)
+
+    struct DebugReport {
+        let subName: String
+        let rawPostCount: Int
+        let afterMetaFilter: Int   // stickied/self/removed dropped
+        let afterScoreFilter: Int
+        let afterFlairFilter: Int
+        let assetsExtracted: Int
+        let afterHighlightsFilter: Int
+        let afterSportClassifier: Int
+        let error: String?
+    }
+
+    /// Run the full pipeline for a single sub and report where items get dropped.
+    static func debugFetch(sub: SubredditSource,
+                           catalog: Catalog,
+                           credentials: RedditCredentials,
+                           allowSpoilers: Bool,
+                           customBlocklist: [String],
+                           englishOnly: Bool) async -> DebugReport {
+        let sportsById = Dictionary(uniqueKeysWithValues: catalog.sports.map { ($0.id, $0) })
+        do {
+            let root = try await RedditGateway.shared.fetch(path: "/r/\(sub.name)/hot?limit=50", credentials: credentials)
+            guard let data = root["data"] as? [String: Any],
+                  let children = data["children"] as? [[String: Any]] else {
+                return .init(subName: sub.name, rawPostCount: 0,
+                             afterMetaFilter: 0, afterScoreFilter: 0,
+                             afterFlairFilter: 0, assetsExtracted: 0,
+                             afterHighlightsFilter: 0, afterSportClassifier: 0,
+                             error: "unexpected response shape")
+            }
+            var raw = children.count
+            var m = 0, s = 0, f = 0, a = 0, h = 0, sc = 0
+            for child in children {
+                guard let post = child["data"] as? [String: Any] else { continue }
+                if (post["stickied"] as? Bool) == true { continue }
+                if (post["is_self"] as? Bool) == true { continue }
+                if (post["removed_by_category"] as? String) != nil { continue }
+                m += 1
+                let score = (post["score"] as? Int) ?? 0
+                if let floor = sub.minScore, score < floor { continue }
+                s += 1
+                if let allow = sub.flairAllowlist, !allow.isEmpty {
+                    let flair = (post["link_flair_text"] as? String) ?? ""
+                    if !allow.contains(where: { flair.localizedCaseInsensitiveContains($0) }) { continue }
+                }
+                f += 1
+                guard let _ = extractAsset(post) else { continue }
+                a += 1
+                let title = (post["title"] as? String) ?? ""
+                guard HighlightsFilter.isMatchHighlight(title: title, allowSpoilers: allowSpoilers,
+                                                        customBlocklist: customBlocklist,
+                                                        englishOnly: englishOnly,
+                                                        relaxedForReddit: true) else { continue }
+                h += 1
+                let stubChannel = YouTubeChannel(channelId: "reddit-\(sub.id)", name: sub.displayName, sportHints: sub.sportHints)
+                guard let match = SportClassifier.classify(title: title, channel: stubChannel, catalog: catalog),
+                      let _ = sportsById[match.sport.id] else { continue }
+                sc += 1
+                _ = raw
+            }
+            return .init(subName: sub.name, rawPostCount: raw,
+                         afterMetaFilter: m, afterScoreFilter: s,
+                         afterFlairFilter: f, assetsExtracted: a,
+                         afterHighlightsFilter: h, afterSportClassifier: sc,
+                         error: nil)
+        } catch {
+            return .init(subName: sub.name, rawPostCount: 0,
+                         afterMetaFilter: 0, afterScoreFilter: 0,
+                         afterFlairFilter: 0, assetsExtracted: 0,
+                         afterHighlightsFilter: 0, afterSportClassifier: 0,
+                         error: error.localizedDescription)
+        }
+    }
+
     private static func fetchOne(sub: SubredditSource,
                                  catalog: Catalog,
                                  sportsById: [String: Sport],

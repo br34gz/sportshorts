@@ -38,6 +38,13 @@ struct SourcesSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
+                if session.redditEnabled && session.redditCredentials.isConfigured {
+                    NavigationLink {
+                        RedditDebugView()
+                    } label: {
+                        Label("Test Reddit fetch", systemImage: "stethoscope")
+                    }
+                }
                 if !session.subredditCatalog.enabled {
                     Label("Reddit source disabled remotely — will resume when the catalog re-enables it.", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption)
@@ -213,6 +220,85 @@ private struct RedditCredentialsView: View {
                 testStatus = error.localizedDescription
             }
             testing = false
+        }
+    }
+}
+
+// MARK: - Debug
+
+private struct RedditDebugView: View {
+    @Environment(AppSession.self) private var session
+    @State private var reports: [RedditFetcher.DebugReport] = []
+    @State private var running = false
+
+    var body: some View {
+        List {
+            Section {
+                Button {
+                    runTests()
+                } label: {
+                    HStack {
+                        if running { ProgressView().padding(.trailing, 6) }
+                        Text(running ? "Testing…" : "Run pipeline test on followed subs")
+                    }
+                }
+                .disabled(running || subsToTest.isEmpty)
+            } footer: {
+                Text("Runs the actual Reddit fetch + filter pipeline on each of your followed subs and reports how many posts survived each stage. Use this to see where content is being dropped.")
+            }
+
+            if !reports.isEmpty {
+                Section("Results") {
+                    ForEach(reports, id: \.subName) { r in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("r/\(r.subName)").font(.body.weight(.semibold))
+                            if let err = r.error {
+                                Text("Error: \(err)")
+                                    .font(.caption).foregroundStyle(.red)
+                            } else {
+                                Text("Raw posts: \(r.rawPostCount)")
+                                Text("→ after meta filter (drop stickied/self/removed): \(r.afterMetaFilter)")
+                                Text("→ after score floor: \(r.afterScoreFilter)")
+                                Text("→ after flair allowlist: \(r.afterFlairFilter)")
+                                Text("→ assets extracted (had playable video): \(r.assetsExtracted)")
+                                Text("→ after title filter: \(r.afterHighlightsFilter)")
+                                Text("→ after sport classifier: \(r.afterSportClassifier) ← ends in feed")
+                                    .foregroundStyle(r.afterSportClassifier > 0 ? .primary : .red)
+                            }
+                        }
+                        .font(.caption)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Reddit debug")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var subsToTest: [SubredditSource] {
+        let catalog = session.subredditCatalog.subreddits.filter { session.followedSubredditIds.contains($0.id) }
+        let user = session.userAddedSubreddits.filter { session.followedSubredditIds.contains($0.id) }
+        return catalog + user
+    }
+
+    private func runTests() {
+        running = true
+        reports = []
+        Task {
+            var out: [RedditFetcher.DebugReport] = []
+            for sub in subsToTest {
+                let r = await RedditFetcher.debugFetch(
+                    sub: sub,
+                    catalog: session.catalog,
+                    credentials: session.redditCredentials,
+                    allowSpoilers: session.allowSpoilers,
+                    customBlocklist: session.customBlocklist,
+                    englishOnly: session.englishOnly
+                )
+                out.append(r)
+            }
+            reports = out
+            running = false
         }
     }
 }
