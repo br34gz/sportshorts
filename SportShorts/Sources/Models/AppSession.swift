@@ -81,6 +81,16 @@ final class AppSession {
 
     var subredditCatalog: SubredditCatalog = .empty
 
+    /// User-supplied Reddit OAuth credentials. Cleared until they set them
+    /// in Settings → Sources → Reddit.
+    var redditCredentials: RedditCredentials {
+        didSet {
+            if let data = try? JSONEncoder().encode(redditCredentials) {
+                UserDefaults.standard.set(data, forKey: "sportshorts.reddit_credentials")
+            }
+        }
+    }
+
     var catalog: Catalog = .empty
     var feed: [VideoItem] = []
     var isLoadingFeed = false
@@ -102,6 +112,12 @@ final class AppSession {
             self.userAddedSubreddits = decoded
         } else {
             self.userAddedSubreddits = []
+        }
+        if let data = UserDefaults.standard.data(forKey: "sportshorts.reddit_credentials"),
+           let decoded = try? JSONDecoder().decode(RedditCredentials.self, from: data) {
+            self.redditCredentials = decoded
+        } else {
+            self.redditCredentials = RedditCredentials(clientId: "", clientSecret: nil)
         }
         // englishOnly defaults to TRUE. Distinguish "never set" from "explicitly false".
         if UserDefaults.standard.object(forKey: "sportshorts.english_only") == nil {
@@ -150,6 +166,7 @@ final class AppSession {
         redditEnabled = false
         followedSubredditIds = []
         userAddedSubreddits = []
+        redditCredentials = RedditCredentials(clientId: "", clientSecret: nil)
         feed = []
         lastFeedError = nil
     }

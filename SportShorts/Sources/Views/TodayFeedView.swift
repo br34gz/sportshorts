@@ -74,15 +74,6 @@ struct TodayFeedView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    SpoilerToggle(isOn: Binding(
-                        get: { session.allowSpoilers },
-                        set: { newVal in
-                            session.allowSpoilers = newVal
-                            Task { pageSize = 20; await refresh(force: true) }
-                        }
-                    ))
-                }
-                ToolbarItem(placement: .topBarTrailing) {
                     Button { Task { pageSize = 20; await refresh(force: true) } } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -139,6 +130,7 @@ struct TodayFeedView: View {
                 channels: session.activeChannels,
                 subreddits: session.activeSubreddits,
                 redditEnabled: session.redditEnabled && session.subredditCatalog.enabled,
+                redditCredentials: session.redditCredentials,
                 catalog: session.catalog,
                 allowSpoilers: session.allowSpoilers,
                 customBlocklist: session.customBlocklist,
@@ -202,19 +194,3 @@ private struct FilterChip: View {
     }
 }
 
-// MARK: - Spoiler toggle (toolbar)
-
-private struct SpoilerToggle: View {
-    @Binding var isOn: Bool
-
-    var body: some View {
-        Button {
-            isOn.toggle()
-        } label: {
-            Image(systemName: isOn ? "eye.fill" : "eye.slash.fill")
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(isOn ? Color.accentColor : .secondary)
-        }
-        .accessibilityLabel(isOn ? "Hide spoilers" : "Show spoilers")
-    }
-}

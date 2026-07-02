@@ -9,6 +9,22 @@ struct AdvancedSettingsView: View {
         List {
             Section {
                 Toggle(isOn: Binding(
+                    get: { session.allowSpoilers },
+                    set: { session.allowSpoilers = $0 }
+                )) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Show spoilers").font(.body)
+                        Text("When off (default), titles that give away the result — explicit scores, goal/win/loss verbs, brackets in Reddit format — are dropped from the feed. When on, everything the filter would otherwise keep.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Spoilers")
+            }
+
+            Section {
+                Toggle(isOn: Binding(
                     get: { session.englishOnly },
                     set: { session.englishOnly = $0 }
                 )) {

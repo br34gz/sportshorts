@@ -13,13 +13,16 @@ enum RedditFetcher {
 
     /// Fetch every subreddit in `subs`, classify, dedupe, return VideoItems.
     /// `redditEnabled` mirrors the catalog kill switch (`subreddits.json.enabled`).
+    /// `credentials.isConfigured` gates the whole path — no valid OAuth
+    /// credentials means no Reddit traffic.
     static func fetch(subreddits subs: [SubredditSource],
                       catalog: Catalog,
                       redditEnabled: Bool,
+                      credentials: RedditCredentials,
                       allowSpoilers: Bool,
                       customBlocklist: [String],
                       englishOnly: Bool) async -> [VideoItem] {
-        guard redditEnabled, !subs.isEmpty else { return [] }
+        guard redditEnabled, credentials.isConfigured, !subs.isEmpty else { return [] }
         let sportsById = Dictionary(uniqueKeysWithValues: catalog.sports.map { ($0.id, $0) })
 
         var merged: [VideoItem] = []
@@ -30,6 +33,7 @@ enum RedditFetcher {
                         sub: sub,
                         catalog: catalog,
                         sportsById: sportsById,
+                        credentials: credentials,
                         allowSpoilers: allowSpoilers,
                         customBlocklist: customBlocklist,
                         englishOnly: englishOnly
@@ -44,13 +48,15 @@ enum RedditFetcher {
     private static func fetchOne(sub: SubredditSource,
                                  catalog: Catalog,
                                  sportsById: [String: Sport],
+                                 credentials: RedditCredentials,
                                  allowSpoilers: Bool,
                                  customBlocklist: [String],
                                  englishOnly: Bool) async -> [VideoItem] {
         // hot sort surfaces breaking highlights fastest — per the doc.
-        let listingURL = URL(string: "https://www.reddit.com/r/\(sub.name)/hot.json?limit=50&raw_json=1")!
+        // Path only (no www./oauth.reddit.com prefix); RedditGateway routes
+        // it to oauth.reddit.com with the bearer token attached.
         do {
-            let root = try await RedditGateway.shared.fetch(url: listingURL)
+            let root = try await RedditGateway.shared.fetch(path: "/r/\(sub.name)/hot?limit=50", credentials: credentials)
             guard let data = root["data"] as? [String: Any],
                   let children = data["children"] as? [[String: Any]] else { return [] }
 

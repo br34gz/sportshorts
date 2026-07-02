@@ -39,6 +39,7 @@ struct RootView: View {
                 channels: session.activeChannels,
                 subreddits: session.activeSubreddits,
                 redditEnabled: session.redditEnabled && session.subredditCatalog.enabled,
+                redditCredentials: session.redditCredentials,
                 catalog: session.catalog,
                 allowSpoilers: session.allowSpoilers,
                 customBlocklist: session.customBlocklist,

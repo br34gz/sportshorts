@@ -13,10 +13,30 @@ struct SourcesSettingsView: View {
                 )) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Enable Reddit as a source")
-                        Text("Pulls video posts from subreddits alongside YouTube. Turn on to unlock the list below.")
+                        Text("Pulls video posts from subreddits alongside YouTube. Requires an OAuth client_id you register once with Reddit — takes about 60 seconds.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                }
+                NavigationLink {
+                    RedditCredentialsView()
+                } label: {
+                    HStack {
+                        Text("Reddit credentials")
+                        Spacer()
+                        if session.redditCredentials.isConfigured {
+                            Label("Set", systemImage: "checkmark.circle.fill")
+                                .labelStyle(.iconOnly)
+                                .foregroundStyle(.green)
+                        } else {
+                            Text("Not set").foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                if session.redditEnabled && !session.redditCredentials.isConfigured {
+                    Label("Add credentials to start pulling posts.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                 }
                 if !session.subredditCatalog.enabled {
                     Label("Reddit source disabled remotely — will resume when the catalog re-enables it.", systemImage: "exclamationmark.triangle.fill")
@@ -26,7 +46,7 @@ struct SourcesSettingsView: View {
             } header: {
                 Text("Reddit")
             } footer: {
-                Text("YouTube channels are always on. Reddit is optional and can be turned off entirely.")
+                Text("YouTube channels are always on. Reddit is optional and requires a one-time OAuth setup.")
             }
 
             if session.redditEnabled {
@@ -95,6 +115,105 @@ struct SourcesSettingsView: View {
 
     private func removeUserSubs(at offsets: IndexSet) {
         session.userAddedSubreddits.remove(atOffsets: offsets)
+    }
+}
+
+// MARK: - Credentials page
+
+private struct RedditCredentialsView: View {
+    @Environment(AppSession.self) private var session
+    @State private var clientId = ""
+    @State private var clientSecret = ""
+    @State private var testing = false
+    @State private var testStatus: String?
+    @State private var testOK: Bool = false
+
+    var body: some View {
+        Form {
+            Section {
+                TextField("Client ID", text: $clientId)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.body.monospaced())
+                TextField("Client Secret (optional for installed apps)", text: $clientSecret)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .font(.body.monospaced())
+            } header: {
+                Text("Reddit App")
+            } footer: {
+                Text("Values from the app you registered at reddit.com/prefs/apps. If you selected 'installed app', leave the secret blank.")
+            }
+
+            Section {
+                Button {
+                    testCredentials()
+                } label: {
+                    HStack {
+                        if testing { ProgressView().padding(.trailing, 6) }
+                        Text(testing ? "Testing…" : "Save & test")
+                    }
+                }
+                .disabled(clientId.trimmingCharacters(in: .whitespaces).isEmpty || testing)
+                if let testStatus {
+                    HStack {
+                        Image(systemName: testOK ? "checkmark.circle.fill" : "xmark.octagon.fill")
+                            .foregroundStyle(testOK ? Color.green : Color.red)
+                        Text(testStatus).font(.footnote)
+                    }
+                }
+            }
+
+            Section {
+                Link(destination: URL(string: "https://www.reddit.com/prefs/apps")!) {
+                    Label("Open reddit.com/prefs/apps", systemImage: "arrow.up.right.square")
+                }
+            } header: {
+                Text("How to get a client ID")
+            } footer: {
+                Text("1. Sign in to Reddit → prefs/apps.\n2. Click 'are you a developer? create an app'.\n3. Select 'installed app'.\n4. Name: SportShorts. Redirect URI: http://localhost.\n5. Create → copy the short string under your app's name (that's the client_id).")
+            }
+
+            if session.redditCredentials.isConfigured {
+                Section {
+                    Button(role: .destructive) {
+                        session.redditCredentials = RedditCredentials(clientId: "", clientSecret: nil)
+                        clientId = ""
+                        clientSecret = ""
+                        testStatus = nil
+                    } label: {
+                        Text("Clear credentials")
+                    }
+                }
+            }
+        }
+        .navigationTitle("Reddit credentials")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            clientId = session.redditCredentials.clientId
+            clientSecret = session.redditCredentials.clientSecret ?? ""
+        }
+    }
+
+    private func testCredentials() {
+        testing = true
+        testStatus = nil
+        let creds = RedditCredentials(
+            clientId: clientId.trimmingCharacters(in: .whitespaces),
+            clientSecret: clientSecret.trimmingCharacters(in: .whitespaces).isEmpty ? nil : clientSecret.trimmingCharacters(in: .whitespaces)
+        )
+        Task {
+            do {
+                try await RedditGateway.testCredentials(creds)
+                testOK = true
+                testStatus = "Working — saved."
+                session.redditCredentials = creds
+            } catch {
+                testOK = false
+                testStatus = error.localizedDescription
+            }
+            testing = false
+        }
     }
 }
 

@@ -10,6 +10,7 @@ enum FeedFetcher {
     static func fetch(channels: [YouTubeChannel],
                       subreddits: [SubredditSource] = [],
                       redditEnabled: Bool = false,
+                      redditCredentials: RedditCredentials = RedditCredentials(clientId: "", clientSecret: nil),
                       catalog: Catalog,
                       allowSpoilers: Bool = false,
                       customBlocklist: [String] = [],
@@ -48,6 +49,7 @@ enum FeedFetcher {
             subreddits: subreddits,
             catalog: catalog,
             redditEnabled: redditEnabled,
+            credentials: redditCredentials,
             allowSpoilers: allowSpoilers,
             customBlocklist: customBlocklist,
             englishOnly: englishOnly
