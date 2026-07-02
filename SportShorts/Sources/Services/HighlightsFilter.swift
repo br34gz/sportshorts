@@ -7,7 +7,15 @@ enum HighlightsFilter {
     static func isMatchHighlight(title: String,
                                  allowSpoilers: Bool = true,
                                  customBlocklist: [String] = [],
-                                 englishOnly: Bool = false) -> Bool {
+                                 englishOnly: Bool = false,
+                                 // When true, we skip the positive-signal
+                                 // requirements and the non-ASCII language
+                                 // check — Reddit highlight subs post
+                                 // single-clip titles like "⚽ GOAL | 31'"
+                                 // that have neither a "highlights" word
+                                 // nor mostly-ASCII content, but ARE
+                                 // highlights by virtue of the sub.
+                                 relaxedForReddit: Bool = false) -> Bool {
         let lower = title.lowercased()
 
         // Spoiler gate — when spoilers are off, drop titles that reveal the
@@ -25,13 +33,29 @@ enum HighlightsFilter {
             if lower.contains(t) { return false }
         }
 
-        // English-only gate. Two rejects:
-        //  a) explicit non-English language markers in the title
-        //  b) title contains >30% non-ASCII characters, suggesting the video
-        //     is titled in a non-Latin script (Devanagari, CJK, Arabic, etc.)
-        if englishOnly && !isLikelyEnglish(title: title, lower: lower) {
-            return false
+        // English-only gate.
+        if englishOnly {
+            // Explicit non-English markers always reject (Hindi, Español, etc).
+            for marker in nonEnglishMarkers where lower.contains(marker) {
+                return false
+            }
+            // Non-ASCII heuristic — skip for Reddit (emoji/flags are Reddit
+            // convention, not a language indicator).
+            if !relaxedForReddit {
+                let asciiCount = title.unicodeScalars.reduce(0) { $0 + ($1.isASCII ? 1 : 0) }
+                let total = title.unicodeScalars.count
+                if total > 0 {
+                    let nonAsciiRatio = 1.0 - (Double(asciiCount) / Double(total))
+                    if nonAsciiRatio > 0.3 { return false }
+                }
+            }
         }
+
+        // Reddit relaxation: trust the sub's curation. Skip the positive-signal
+        // requirements (no "match highlights" word needed) and the built-in
+        // hard-reject keyword list. Users still get spoiler + custom blocklist
+        // protection.
+        if relaxedForReddit { return true }
 
         // 1. Hard rejects — any of these wins, video is dropped.
         for kw in Self.builtInRejectKeywords where lower.contains(kw) {

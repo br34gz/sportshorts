@@ -114,7 +114,8 @@ enum RedditFetcher {
             title: title,
             allowSpoilers: allowSpoilers,
             customBlocklist: customBlocklist,
-            englishOnly: englishOnly
+            englishOnly: englishOnly,
+            relaxedForReddit: true
         ) else { return nil }
 
         let publishedAt = Date(timeIntervalSince1970: (post["created_utc"] as? Double) ?? 0)
