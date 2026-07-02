@@ -130,6 +130,93 @@ struct Catalog: Codable {
 
 // MARK: - Video
 
+// MARK: - Subreddit source (Reddit as a channel type)
+
+/// A subreddit followed by the user as a highlights source. Behaviourally
+/// equivalent to a YouTubeChannel — a named source that emits timestamped
+/// video items — routed via the RedditGateway instead of RSS.
+struct SubredditSource: Identifiable, Hashable, Codable {
+    /// Sub name without the leading `r/` (e.g. "soccer", "NRL", "AFL").
+    let name: String
+    /// Optional per-sub upvote floor. Posts with `score < min_score` are dropped.
+    let minScore: Int?
+    /// Sport hints — same semantics as YouTubeChannel.sportHints. Empty = infer via classifier.
+    let sportHints: [String]
+    /// Reddit `link_flair_text` allow-list. Empty = accept any flair.
+    let flairAllowlist: [String]?
+    /// True only for subs the user added via Settings.
+    let userAdded: Bool
+
+    var id: String { name.lowercased() }
+    var displayName: String { "r/\(name)" }
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case minScore = "min_score"
+        case sportHints = "sport_hints"
+        case flairAllowlist = "flair_allowlist"
+        case userAdded = "user_added"
+    }
+
+    init(name: String, minScore: Int? = nil, sportHints: [String] = [], flairAllowlist: [String]? = nil, userAdded: Bool = false) {
+        self.name = name
+        self.minScore = minScore
+        self.sportHints = sportHints
+        self.flairAllowlist = flairAllowlist
+        self.userAdded = userAdded
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try c.decode(String.self, forKey: .name)
+        self.minScore = try c.decodeIfPresent(Int.self, forKey: .minScore)
+        self.sportHints = (try? c.decode([String].self, forKey: .sportHints)) ?? []
+        self.flairAllowlist = try c.decodeIfPresent([String].self, forKey: .flairAllowlist)
+        self.userAdded = (try? c.decode(Bool.self, forKey: .userAdded)) ?? false
+    }
+}
+
+/// Top-level shape of `subreddits.json`. Ships a curated seed catalog + a
+/// kill switch (`enabled`) that lets us globally disable Reddit fetching
+/// with one catalog push.
+struct SubredditCatalog: Codable {
+    let enabled: Bool
+    let subreddits: [SubredditSource]
+
+    enum CodingKeys: String, CodingKey { case enabled, subreddits }
+
+    static let empty = SubredditCatalog(enabled: true, subreddits: [])
+
+    init(enabled: Bool = true, subreddits: [SubredditSource] = []) {
+        self.enabled = enabled
+        self.subreddits = subreddits
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.enabled = (try? c.decode(Bool.self, forKey: .enabled)) ?? true
+        self.subreddits = (try? c.decode([SubredditSource].self, forKey: .subreddits)) ?? []
+    }
+}
+
+// MARK: - Video item
+
+/// The playable-source shape carried on VideoItem. Determines which player
+/// the PlayerSheet routes to.
+enum PlayableSource: Hashable, Codable {
+    case youtube(videoId: String)
+    case hlsStream(url: URL)
+    case mp4Stream(url: URL)
+    /// Terminal fallback — open in Safari at play time.
+    case external(url: URL)
+}
+
+/// What produced this VideoItem — used by VideoCard for the source label.
+enum SourceOrigin: Hashable, Codable {
+    case youtubeChannel(id: String)
+    case subreddit(name: String)
+}
+
 struct VideoItem: Identifiable, Hashable {
     let id: String
     let title: String
@@ -144,5 +231,52 @@ struct VideoItem: Identifiable, Hashable {
     let competitionId: String?
     let competitionLabel: String?
 
-    var watchURL: URL { URL(string: "https://www.youtube.com/watch?v=\(id)")! }
+    /// Playable asset — YouTube video id, HLS/mp4 stream URL, or external
+    /// fallback. Defaults to `.youtube(id: self.id)` for legacy call sites.
+    var source: PlayableSource = .youtube(videoId: "")
+    /// Where this item came from — YouTube channel or subreddit.
+    var origin: SourceOrigin = .youtubeChannel(id: "")
+    /// Reddit upvotes when origin == .subreddit — surfaced in the card label.
+    var redditScore: Int?
+    /// Direct link back to the source (permalink for Reddit, watch URL for YouTube).
+    var permalink: URL?
+
+    var watchURL: URL {
+        if let permalink { return permalink }
+        return URL(string: "https://www.youtube.com/watch?v=\(id)")!
+    }
+
+    init(
+        id: String,
+        title: String,
+        channelTitle: String,
+        channelId: String,
+        publishedAt: Date,
+        thumbnailURL: URL?,
+        sportId: String,
+        sportLabel: String,
+        sportIcon: String,
+        competitionId: String?,
+        competitionLabel: String?,
+        source: PlayableSource? = nil,
+        origin: SourceOrigin? = nil,
+        redditScore: Int? = nil,
+        permalink: URL? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.channelTitle = channelTitle
+        self.channelId = channelId
+        self.publishedAt = publishedAt
+        self.thumbnailURL = thumbnailURL
+        self.sportId = sportId
+        self.sportLabel = sportLabel
+        self.sportIcon = sportIcon
+        self.competitionId = competitionId
+        self.competitionLabel = competitionLabel
+        self.source = source ?? .youtube(videoId: id)
+        self.origin = origin ?? .youtubeChannel(id: channelId)
+        self.redditScore = redditScore
+        self.permalink = permalink
+    }
 }

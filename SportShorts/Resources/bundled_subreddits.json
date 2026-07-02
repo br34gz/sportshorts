@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "subreddits": [
+    {"name": "soccer",            "min_score": 200, "sport_hints": ["soccer"]},
+    {"name": "footballhighlights","min_score": 20,  "sport_hints": ["soccer"]},
+    {"name": "nba",               "min_score": 300, "sport_hints": ["nba"],  "flair_allowlist": ["Highlight", "Highlights"]},
+    {"name": "nfl",               "min_score": 300, "sport_hints": ["nfl"],  "flair_allowlist": ["Highlight", "Highlights"]},
+    {"name": "hockey",            "min_score": 150, "sport_hints": ["nhl"]},
+    {"name": "baseball",          "min_score": 150, "sport_hints": ["mlb"]},
+    {"name": "nrl",               "min_score": 30,  "sport_hints": ["nrl"]},
+    {"name": "AFL",               "min_score": 40,  "sport_hints": ["afl"]},
+    {"name": "Cricket",           "min_score": 100, "sport_hints": ["cricket"]},
+    {"name": "formula1",          "min_score": 500, "sport_hints": ["f1"],   "flair_allowlist": [": Video", "Video", "Highlights"]},
+    {"name": "tennis",            "min_score": 100, "sport_hints": ["tennis"]}
+  ]
+}

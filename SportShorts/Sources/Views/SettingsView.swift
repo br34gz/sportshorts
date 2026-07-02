@@ -49,6 +49,20 @@ struct SettingsView: View {
 
                 Section {
                     NavigationLink {
+                        SourcesSettingsView()
+                    } label: {
+                        HStack {
+                            Image(systemName: "square.stack.3d.up.fill").foregroundStyle(.tint).frame(width: 22)
+                            Text("Sources")
+                            Spacer()
+                            if session.redditEnabled {
+                                Text("YouTube + Reddit").foregroundStyle(.secondary)
+                            } else {
+                                Text("YouTube").foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                    NavigationLink {
                         AdvancedSettingsView()
                     } label: {
                         HStack {
@@ -57,7 +71,7 @@ struct SettingsView: View {
                         }
                     }
                 } footer: {
-                    Text("Language filter and custom title blocklist.")
+                    Text("Add Reddit subreddits as an extra source, or tune the language filter and custom title blocklist.")
                 }
 
                 Section("About") {

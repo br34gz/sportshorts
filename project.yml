@@ -39,6 +39,7 @@ targets:
     resources:
       - path: SportShorts/Resources/Assets.xcassets
       - path: SportShorts/Resources/bundled_channels.json
+      - path: SportShorts/Resources/bundled_subreddits.json
     info:
       path: SportShorts/Resources/Info.plist
       properties:

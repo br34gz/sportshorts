@@ -43,16 +43,7 @@ struct VideoCard: View {
                         .foregroundStyle(.white)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
-                    HStack(spacing: 6) {
-                        Text(item.channelTitle)
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.6))
-                            .lineLimit(1)
-                        Spacer()
-                        Text(item.publishedAt, format: .relative(presentation: .numeric))
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.6))
-                    }
+                    metadataLine
                 }
                 .padding(.horizontal, 4)
                 .padding(.bottom, 4)
@@ -64,5 +55,53 @@ struct VideoCard: View {
             }
         }
         .buttonStyle(.plain)
+    }
+
+    /// Metadata line under the title. YouTube items show channel · time.
+    /// Reddit items follow the design doc: `r/name · ▲ score · time`.
+    @ViewBuilder
+    private var metadataLine: some View {
+        switch item.origin {
+        case .subreddit:
+            HStack(spacing: 6) {
+                Text(item.channelTitle)  // already `r/name`
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(1)
+                if let score = item.redditScore {
+                    Text("·")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.4))
+                    HStack(spacing: 2) {
+                        Image(systemName: "arrowtriangle.up.fill")
+                            .font(.caption2)
+                        Text(compactScore(score))
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.white.opacity(0.6))
+                }
+                Spacer()
+                Text(item.publishedAt, format: .relative(presentation: .numeric))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+        case .youtubeChannel:
+            HStack(spacing: 6) {
+                Text(item.channelTitle)
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(1)
+                Spacer()
+                Text(item.publishedAt, format: .relative(presentation: .numeric))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+        }
+    }
+
+    private func compactScore(_ n: Int) -> String {
+        if n >= 1_000_000 { return String(format: "%.1fM", Double(n) / 1_000_000) }
+        if n >= 1_000     { return String(format: "%.1fk", Double(n) / 1_000) }
+        return "\(n)"
     }
 }

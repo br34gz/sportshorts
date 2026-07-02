@@ -123,6 +123,8 @@ struct TodayFeedView: View {
         hasher.combine(session.englishOnly)
         hasher.combine(session.customBlocklist.sorted())
         hasher.combine(session.activeChannels.map(\.channelId).sorted())
+        hasher.combine(session.redditEnabled)
+        hasher.combine(session.followedSubredditIds.sorted())
         return hasher.finalize()
     }
 
@@ -135,6 +137,8 @@ struct TodayFeedView: View {
         do {
             session.feed = try await FeedFetcher.fetch(
                 channels: session.activeChannels,
+                subreddits: session.activeSubreddits,
+                redditEnabled: session.redditEnabled && session.subredditCatalog.enabled,
                 catalog: session.catalog,
                 allowSpoilers: session.allowSpoilers,
                 customBlocklist: session.customBlocklist,

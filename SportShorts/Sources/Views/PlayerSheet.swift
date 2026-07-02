@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import AVKit
 
 struct PlayerSheet: View {
     let item: VideoItem
@@ -20,12 +21,7 @@ struct PlayerSheet: View {
                 if unplayable {
                     embedFailedView.padding()
                 } else {
-                    IFramePlayer(
-                        videoId: item.id,
-                        skipRanges: skipRanges,
-                        skipRangesLoaded: skipRangesLoaded,
-                        onUnplayable: { unplayable = true }
-                    )
+                    playerBody
                 }
             }
             .aspectRatio(16/9, contentMode: .fit)
@@ -60,6 +56,48 @@ struct PlayerSheet: View {
                     competitionId: compId
                 )
             }
+        }
+    }
+
+    /// Routes to the right player subview based on the item's PlayableSource.
+    @ViewBuilder
+    private var playerBody: some View {
+        switch item.source {
+        case .youtube(let vid):
+            IFramePlayer(
+                videoId: vid.isEmpty ? item.id : vid,
+                skipRanges: skipRanges,
+                skipRangesLoaded: skipRangesLoaded,
+                onUnplayable: { unplayable = true }
+            )
+        case .hlsStream(let url), .mp4Stream(let url):
+            AVStreamPlayer(url: url)
+        case .external(let url):
+            externalOpenView(url: url)
+        }
+    }
+
+    private func externalOpenView(url: URL) -> some View {
+        VStack(spacing: 10) {
+            Image(systemName: "arrow.up.forward.app")
+                .font(.system(size: 32))
+                .foregroundStyle(.white.opacity(0.7))
+            Text("This clip plays outside the app")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .multilineTextAlignment(.center)
+            Button {
+                UIApplication.shared.open(url)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "play.fill")
+                    Text("Open in \(url.host ?? "browser")")
+                }
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 14).padding(.vertical, 7)
+            }
+            .buttonStyle(.bordered)
+            .tint(.white)
         }
     }
 

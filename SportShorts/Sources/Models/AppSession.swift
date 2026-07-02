@@ -56,6 +56,31 @@ final class AppSession {
         didSet { UserDefaults.standard.set(englishOnly, forKey: "sportshorts.english_only") }
     }
 
+    /// Master switch for Reddit as an aggregate source. When false, no
+    /// reddit.com traffic and no r/… items in the feed. Default false —
+    /// user must opt in from Settings → Sources.
+    var redditEnabled: Bool {
+        didSet { UserDefaults.standard.set(redditEnabled, forKey: "sportshorts.reddit_enabled") }
+    }
+
+    /// IDs (lowercased sub names) of subreddits the user follows. Only
+    /// subs present in this set contribute to the feed. Wildly parallel
+    /// to followedSportIds for YouTube channels.
+    var followedSubredditIds: Set<String> {
+        didSet { persistSet(followedSubredditIds, key: "sportshorts.followed_subs") }
+    }
+
+    /// Subs the user added manually — not in the bundled/remote catalog.
+    var userAddedSubreddits: [SubredditSource] {
+        didSet {
+            if let data = try? JSONEncoder().encode(userAddedSubreddits) {
+                UserDefaults.standard.set(data, forKey: "sportshorts.user_subs")
+            }
+        }
+    }
+
+    var subredditCatalog: SubredditCatalog = .empty
+
     var catalog: Catalog = .empty
     var feed: [VideoItem] = []
     var isLoadingFeed = false
@@ -70,6 +95,14 @@ final class AppSession {
         self.hiddenChannelIds = Self.loadSet("sportshorts.hidden_channels")
         self.allowSpoilers = UserDefaults.standard.bool(forKey: "sportshorts.allow_spoilers")
         self.customBlocklist = (UserDefaults.standard.array(forKey: "sportshorts.custom_blocklist") as? [String]) ?? []
+        self.redditEnabled = UserDefaults.standard.bool(forKey: "sportshorts.reddit_enabled")
+        self.followedSubredditIds = Self.loadSet("sportshorts.followed_subs")
+        if let data = UserDefaults.standard.data(forKey: "sportshorts.user_subs"),
+           let decoded = try? JSONDecoder().decode([SubredditSource].self, from: data) {
+            self.userAddedSubreddits = decoded
+        } else {
+            self.userAddedSubreddits = []
+        }
         // englishOnly defaults to TRUE. Distinguish "never set" from "explicitly false".
         if UserDefaults.standard.object(forKey: "sportshorts.english_only") == nil {
             self.englishOnly = true
@@ -114,8 +147,24 @@ final class AppSession {
         followedCompetitionIds = []
         userAddedChannels = []
         hiddenChannelIds = []
+        redditEnabled = false
+        followedSubredditIds = []
+        userAddedSubreddits = []
         feed = []
         lastFeedError = nil
+    }
+
+    /// All the subreddits the user actually follows — union of catalog subs
+    /// they've enabled and user-added subs.
+    var activeSubreddits: [SubredditSource] {
+        var byId = [String: SubredditSource]()
+        for s in subredditCatalog.subreddits where followedSubredditIds.contains(s.id) {
+            byId[s.id] = s
+        }
+        for s in userAddedSubreddits where followedSubredditIds.contains(s.id) {
+            byId[s.id] = s
+        }
+        return Array(byId.values)
     }
 
     /// The feed filtered by the user's followed sports + competitions.

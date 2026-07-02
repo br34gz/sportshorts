@@ -17,11 +17,17 @@ struct RootView: View {
     }
 
     private func loadCatalogOnly() async {
-        session.catalog = await ChannelCatalog.load()
+        async let ch = ChannelCatalog.load()
+        async let sub = SubredditCatalogService.load()
+        session.catalog = await ch
+        session.subredditCatalog = await sub
     }
 
     private func loadCatalogAndFeed() async {
-        session.catalog = await ChannelCatalog.load()
+        async let ch = ChannelCatalog.load()
+        async let sub = SubredditCatalogService.load()
+        session.catalog = await ch
+        session.subredditCatalog = await sub
         await refreshFeed()
     }
 
@@ -31,6 +37,8 @@ struct RootView: View {
         do {
             session.feed = try await FeedFetcher.fetch(
                 channels: session.activeChannels,
+                subreddits: session.activeSubreddits,
+                redditEnabled: session.redditEnabled && session.subredditCatalog.enabled,
                 catalog: session.catalog,
                 allowSpoilers: session.allowSpoilers,
                 customBlocklist: session.customBlocklist,
