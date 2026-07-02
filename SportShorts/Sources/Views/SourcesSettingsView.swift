@@ -249,7 +249,8 @@ private struct RedditDebugView: View {
 
             if !reports.isEmpty {
                 Section("Results") {
-                    ForEach(reports) { r in
+                    ForEach(0..<reports.count, id: \.self) { i in
+                        let r = reports[i]
                         VStack(alignment: .leading, spacing: 4) {
                             Text("r/\(r.subName)").font(.body.weight(.semibold))
                             if let err = r.error {
@@ -263,7 +264,7 @@ private struct RedditDebugView: View {
                                 Text("→ assets extracted (had playable video): \(r.assetsExtracted)")
                                 Text("→ after title filter: \(r.afterHighlightsFilter)")
                                 Text("→ after sport classifier: \(r.afterSportClassifier) ← ends in feed")
-                                    .foregroundStyle(r.afterSportClassifier > 0 ? .primary : .red)
+                                    .foregroundStyle(r.afterSportClassifier > 0 ? AnyShapeStyle(Color.primary) : AnyShapeStyle(Color.red))
                             }
                         }
                         .font(.caption)
