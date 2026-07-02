@@ -5,16 +5,12 @@ struct MainTabView: View {
 
     var body: some View {
         TabView {
-            Tab("Highlights", systemImage: "film.stack") {
-                TodayFeedView()
-            }
-            Tab("Browse", systemImage: "square.grid.2x2") {
-                BrowseView()
-            }
-            Tab("Settings", systemImage: "gearshape") {
-                SettingsView()
-            }
+            TodayFeedView()
+                .tabItem { Label("Highlights", systemImage: "film.stack") }
+            BrowseView()
+                .tabItem { Label("Browse", systemImage: "square.grid.2x2") }
+            SettingsView()
+                .tabItem { Label("Settings", systemImage: "gearshape") }
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
     }
 }

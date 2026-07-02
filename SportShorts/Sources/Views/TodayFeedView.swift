@@ -71,7 +71,7 @@ struct TodayFeedView: View {
                 await refresh()
             }
             .navigationTitle("Highlights")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     SpoilerToggle(isOn: Binding(

@@ -23,7 +23,7 @@ A polished iPhone app that pulls sports highlights from the YouTube channels of 
 2. Sideload it onto your iPhone using whichever tool you prefer.
 3. Open, pick your country, pick your sports, done.
 
-**Requires iOS 26** (Liquid Glass design language is used throughout).
+**Requires iOS 17 or later.**
 
 ## Supported countries
 
@@ -47,7 +47,7 @@ The Xcode project itself is not committed — [XcodeGen](https://github.com/yona
 
 ## Stack
 
-- SwiftUI, iOS 26+, Liquid Glass design language
+- SwiftUI, iOS 17+
 - YouTube channel RSS feeds + `/videos` page scrape (no API key, no quota)
 - ESPN + TheSportsDB public APIs for match statistics
 - SponsorBlock community API for skip ranges

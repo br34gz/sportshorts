@@ -63,8 +63,9 @@ private struct CountryStep: View {
             Button { if let picked { onContinue(picked) } } label: {
                 Text("Continue").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.borderedProminent)
             .tint(.white)
+            .foregroundStyle(.black)
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
             .disabled(picked == nil)
@@ -160,8 +161,9 @@ private struct SportsStep: View {
                 Text("Show me my highlights")
                     .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 16)
             }
-            .buttonStyle(.glass)
+            .buttonStyle(.borderedProminent)
             .tint(.white)
+            .foregroundStyle(.black)
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
             .disabled(pickedSports.isEmpty)

@@ -18,7 +18,7 @@ struct BrowseView: View {
                 .padding(.bottom, 32)
             }
             .navigationTitle("Browse")
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .navigationBarTitleDisplayMode(.large)
             .sheet(item: $playing) { PlayerSheet(item: $0) }
         }
     }
@@ -161,7 +161,7 @@ private struct SportFeedView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .navigationTitle(sport.label)
-        .toolbarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private var items: [VideoItem] {
