@@ -18,6 +18,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Extract MARKETING_VERSION
+        id: version
+        run: |
+          VERSION=$(grep 'MARKETING_VERSION:' project.yml | head -1 | sed 's/.*: *"\(.*\)".*/\1/')
+          if [[ -z "$VERSION" ]]; then
+            echo "::error::could not parse MARKETING_VERSION from project.yml"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "SportShorts v$VERSION (build ${{ github.run_number }})"
+
       - name: Select Xcode (latest 26.x)
         run: |
           sudo xcode-select -s "$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)/Contents/Developer" || true
@@ -66,10 +77,10 @@ jobs:
       - name: Publish as latest release (direct .ipa download)
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: build-${{ github.run_number }}
-          name: "SportShorts build #${{ github.run_number }}"
+          tag_name: v${{ steps.version.outputs.version }}-build.${{ github.run_number }}
+          name: "SportShorts v${{ steps.version.outputs.version }} (build ${{ github.run_number }})"
           body: |
-            Auto-built unsigned IPA for sideload via LiveContainer.
+            Auto-built unsigned IPA for sideloading.
 
             Commit: ${{ github.sha }}
             Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
