@@ -47,7 +47,8 @@ enum RedditFetcher {
 
     // MARK: - Diagnostic report (used by Sources → Reddit → Debug)
 
-    struct DebugReport {
+    struct DebugReport: Identifiable {
+        var id: String { subName }
         let subName: String
         let rawPostCount: Int
         let afterMetaFilter: Int   // stickied/self/removed dropped
@@ -77,7 +78,7 @@ enum RedditFetcher {
                              afterHighlightsFilter: 0, afterSportClassifier: 0,
                              error: "unexpected response shape")
             }
-            var raw = children.count
+            let raw = children.count
             var m = 0, s = 0, f = 0, a = 0, h = 0, sc = 0
             for child in children {
                 guard let post = child["data"] as? [String: Any] else { continue }
@@ -105,7 +106,6 @@ enum RedditFetcher {
                 guard let match = SportClassifier.classify(title: title, channel: stubChannel, catalog: catalog),
                       let _ = sportsById[match.sport.id] else { continue }
                 sc += 1
-                _ = raw
             }
             return .init(subName: sub.name, rawPostCount: raw,
                          afterMetaFilter: m, afterScoreFilter: s,

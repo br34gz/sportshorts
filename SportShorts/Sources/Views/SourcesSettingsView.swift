@@ -249,7 +249,7 @@ private struct RedditDebugView: View {
 
             if !reports.isEmpty {
                 Section("Results") {
-                    ForEach(reports, id: \.subName) { r in
+                    ForEach(reports) { r in
                         VStack(alignment: .leading, spacing: 4) {
                             Text("r/\(r.subName)").font(.body.weight(.semibold))
                             if let err = r.error {
