@@ -6,7 +6,7 @@ import Foundation
 /// 3. Bundled fallback shipped with the app
 enum ChannelCatalog {
 
-    static let remoteURL = URL(string: "https://raw.githubusercontent.com/sb86-dev/sportshorts/main/channels.json")!
+    static let remoteURL = URL(string: "https://raw.githubusercontent.com/br34gz/sportshorts/main/channels.json")!
     static let cacheTTL: TimeInterval = 60 * 60 * 24
 
     static func load(forceRefresh: Bool = false) async -> Catalog {

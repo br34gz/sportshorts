@@ -116,7 +116,6 @@
       {"channel_id": "UCd6-Pi3ehHF3foGjhcEveZg", "name": "10 Sport", "handle": "ChannelTen", "sport_hints": []},
       {"channel_id": "UCNAMd7uZy8Y1ArZ58ZwXAjw", "name": "Stan Sport", "handle": "StanSportAU", "sport_hints": []},
       {"channel_id": "UC3tSopytOm7A5cJOUMzbi4A", "name": "Kayo Sports", "handle": "KayoSportsAU", "sport_hints": []},
-      {"channel_id": "UCBi2mrWuNuyYy4gbM6fU18Q", "name": "ABC News", "handle": "ABCNews", "sport_hints": []},
       {"channel_id": "UCxnGkmpVJSBpIOeUwSF9fjw", "name": "SBS Australia", "handle": "SBSAustralia", "sport_hints": ["soccer"]},
       {"channel_id": "UCuuTCooIMbBFHNbPcSS70uw", "name": "SBS News", "handle": "SBSNews", "sport_hints": []},
       {"channel_id": "UCI3BB9bUx9xE2ZoFYUNROyw", "name": "Cricket Australia", "handle": "CricketAU", "sport_hints": ["cricket"]}
@@ -141,6 +140,7 @@
     ],
     "US": [
       {"channel_id": "UCiWLfSweyRNmLpgEHekhoAg", "name": "ESPN", "handle": "ESPN", "sport_hints": []},
+      {"channel_id": "UCBi2mrWuNuyYy4gbM6fU18Q", "name": "ABC News", "handle": "ABCNews", "sport_hints": []},
       {"channel_id": "UC6c1z7bA__85CIWZ_jpCK-Q", "name": "ESPN FC", "handle": "ESPNFC", "sport_hints": ["soccer"]},
       {"channel_id": "UCja8sZ2T4ylIqjggA1Zuukg", "name": "CBS Sports", "handle": "CBSSports", "sport_hints": []},
       {"channel_id": "UCFanEo-SIQ2_i_VXCcOla_Q", "name": "Golazo (CBS)", "handle": "cbsgolazo", "sport_hints": ["soccer"]},
