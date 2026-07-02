@@ -32,7 +32,9 @@ struct RootView: View {
             session.feed = try await FeedFetcher.fetch(
                 channels: session.activeChannels,
                 catalog: session.catalog,
-                allowSpoilers: session.allowSpoilers
+                allowSpoilers: session.allowSpoilers,
+                customBlocklist: session.customBlocklist,
+                englishOnly: session.englishOnly
             )
             session.lastFeedError = nil
         } catch {

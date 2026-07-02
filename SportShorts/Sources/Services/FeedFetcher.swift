@@ -9,7 +9,9 @@ enum FeedFetcher {
     /// both Highlights (filtered) and Browse (all sports).
     static func fetch(channels: [YouTubeChannel],
                       catalog: Catalog,
-                      allowSpoilers: Bool = false) async throws -> [VideoItem] {
+                      allowSpoilers: Bool = false,
+                      customBlocklist: [String] = [],
+                      englishOnly: Bool = true) async throws -> [VideoItem] {
         guard !channels.isEmpty else { return [] }
 
         let sportsById = Dictionary(uniqueKeysWithValues: catalog.sports.map { ($0.id, $0) })
@@ -18,7 +20,14 @@ enum FeedFetcher {
         await withTaskGroup(of: [VideoItem].self) { group in
             for channel in channels {
                 group.addTask {
-                    await fetchOne(channel: channel, catalog: catalog, sportsById: sportsById, allowSpoilers: allowSpoilers)
+                    await fetchOne(
+                        channel: channel,
+                        catalog: catalog,
+                        sportsById: sportsById,
+                        allowSpoilers: allowSpoilers,
+                        customBlocklist: customBlocklist,
+                        englishOnly: englishOnly
+                    )
                 }
             }
             for await items in group { merged.append(contentsOf: items) }
@@ -38,7 +47,9 @@ enum FeedFetcher {
     private static func fetchOne(channel: YouTubeChannel,
                                  catalog: Catalog,
                                  sportsById: [String: Sport],
-                                 allowSpoilers: Bool) async -> [VideoItem] {
+                                 allowSpoilers: Bool,
+                                 customBlocklist: [String],
+                                 englishOnly: Bool) async -> [VideoItem] {
         // RSS + scrape in parallel, then merge by videoId.
         async let rss = fetchRSS(channel: channel)
         async let scraped = ChannelVideoScraper.scrape(channelId: channel.channelId, channelName: channel.name)
@@ -70,7 +81,12 @@ enum FeedFetcher {
             // Drop premiere stubs / upcoming videos — views==0 is the giveaway.
             // -1 means "unknown" (scraper without a parsed view count) → keep.
             if entry.views == 0 { return nil }
-            guard HighlightsFilter.isMatchHighlight(title: entry.title, allowSpoilers: allowSpoilers) else { return nil }
+            guard HighlightsFilter.isMatchHighlight(
+                title: entry.title,
+                allowSpoilers: allowSpoilers,
+                customBlocklist: customBlocklist,
+                englishOnly: englishOnly
+            ) else { return nil }
             guard let match = SportClassifier.classify(title: entry.title, channel: channel, catalog: catalog),
                   let sport = sportsById[match.sport.id] else { return nil }
             return VideoItem(

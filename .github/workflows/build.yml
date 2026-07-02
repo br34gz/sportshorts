@@ -2,7 +2,7 @@ name: Build unsigned IPA
 
 on:
   push:
-    branches: [main]
+    branches: [main, preview]
   workflow_dispatch:
 
 permissions:
@@ -74,7 +74,8 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish as latest release (direct .ipa download)
+      - name: Publish stable release (from main)
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}-build.${{ github.run_number }}
@@ -91,3 +92,33 @@ jobs:
           make_latest: true
           draft: false
           prerelease: false
+
+      - name: Delete previous preview release
+        if: github.ref == 'refs/heads/preview'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete preview-latest --repo ${{ github.repository }} --yes --cleanup-tag 2>/dev/null || true
+
+      - name: Publish preview release (from preview)
+        if: github.ref == 'refs/heads/preview'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: preview-latest
+          name: "SportShorts v${{ steps.version.outputs.version }} preview #${{ github.run_number }}"
+          body: |
+            **Preview build — not a stable release.**
+
+            This tag (`preview-latest`) always points at the newest preview build. Preview builds are marked as pre-release, so the `releases/latest/download/…` shortcut continues to point at the last stable release.
+
+            Testing new features before they merge into main. Reinstall each time you want the latest preview — same bundle ID, so it replaces in place.
+
+            Commit: ${{ github.sha }}
+            Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            Direct preview IPA download:
+            https://github.com/${{ github.repository }}/releases/download/preview-latest/SportShorts-unsigned.ipa
+          files: build/SportShorts-unsigned.ipa
+          make_latest: false
+          draft: false
+          prerelease: true

@@ -47,6 +47,19 @@ struct SettingsView: View {
                     Text("Choose which sports to follow and which YouTube channels to pull from.")
                 }
 
+                Section {
+                    NavigationLink {
+                        AdvancedSettingsView()
+                    } label: {
+                        HStack {
+                            Image(systemName: "wrench.and.screwdriver").foregroundStyle(.tint).frame(width: 22)
+                            Text("Advanced")
+                        }
+                    }
+                } footer: {
+                    Text("Language filter and custom title blocklist.")
+                }
+
                 Section("About") {
                     LabeledContent("Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—")
                     LabeledContent("Build", value: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—")

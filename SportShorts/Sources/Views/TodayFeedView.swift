@@ -120,6 +120,8 @@ struct TodayFeedView: View {
         hasher.combine(session.followedSportIds.sorted())
         hasher.combine(session.followedCompetitionIds.sorted())
         hasher.combine(session.allowSpoilers)
+        hasher.combine(session.englishOnly)
+        hasher.combine(session.customBlocklist.sorted())
         hasher.combine(session.activeChannels.map(\.channelId).sorted())
         return hasher.finalize()
     }
@@ -134,7 +136,9 @@ struct TodayFeedView: View {
             session.feed = try await FeedFetcher.fetch(
                 channels: session.activeChannels,
                 catalog: session.catalog,
-                allowSpoilers: session.allowSpoilers
+                allowSpoilers: session.allowSpoilers,
+                customBlocklist: session.customBlocklist,
+                englishOnly: session.englishOnly
             )
             session.lastFeedError = nil
         } catch {

@@ -4,7 +4,10 @@ import Foundation
 /// reels, season compilations, top-N clips, shorts, pressers, podcasts, etc.
 enum HighlightsFilter {
 
-    static func isMatchHighlight(title: String, allowSpoilers: Bool = true) -> Bool {
+    static func isMatchHighlight(title: String,
+                                 allowSpoilers: Bool = true,
+                                 customBlocklist: [String] = [],
+                                 englishOnly: Bool = false) -> Bool {
         let lower = title.lowercased()
 
         // Spoiler gate — when spoilers are off, drop titles that reveal the
@@ -15,30 +18,23 @@ enum HighlightsFilter {
             return false
         }
 
+        // Custom user blocklist — case-insensitive substring reject.
+        for term in customBlocklist {
+            let t = term.trimmingCharacters(in: .whitespaces).lowercased()
+            guard !t.isEmpty else { continue }
+            if lower.contains(t) { return false }
+        }
+
+        // English-only gate. Two rejects:
+        //  a) explicit non-English language markers in the title
+        //  b) title contains >30% non-ASCII characters, suggesting the video
+        //     is titled in a non-Latin script (Devanagari, CJK, Arabic, etc.)
+        if englishOnly && !isLikelyEnglish(title: title, lower: lower) {
+            return false
+        }
+
         // 1. Hard rejects — any of these wins, video is dropped.
-        let rejectKeywords: [String] = [
-            "#shorts", " shorts ", "shorts |", "tiktok", "instagram",
-            "best moments", "best of", "best try", "best tries", "best goal", "best goals",
-            "best moment", "best save", "best saves", "best wickets", "best catches",
-            "biggest", "incredible", "insane", "amazing", "stunning", "epic", "wild",
-            "must-see", "must see", "wow",
-            "top 5", "top 10", "top ten", "top five",
-            "of the week", "of the month", "of the season", "of the year",
-            "every goal", "every try", "every wicket", "every six", "every basket",
-            "all goals", "all tries", "all wickets", "all sixes", "all dunks",
-            "player of", "team of",
-            "compilation",
-            "press conference", "presser", "post-match interview",
-            "media call", "media conference",
-            "preview", "podcast", "fans react", "tribute",
-            "behind the scenes", "bonus features", "extras",
-            "escapes", "tackles only", "saves only", "goals only",
-            "ranked", "moments only",
-            "takes questions", "questions ahead",
-            "watch live", "live now",
-            "train before", "training", "in training",
-        ]
-        for kw in rejectKeywords where lower.contains(kw) {
+        for kw in Self.builtInRejectKeywords where lower.contains(kw) {
             return false
         }
 
@@ -124,6 +120,61 @@ enum HighlightsFilter {
         return false
     }
 
+    /// If the title would be rejected, returns a short human-readable reason
+    /// (e.g. "matches spoiler word: goal", "matches your custom blocklist: X").
+    /// Returns nil if the title would pass.
+    static func rejectionReason(title: String,
+                                 allowSpoilers: Bool = true,
+                                 customBlocklist: [String] = [],
+                                 englishOnly: Bool = false) -> String? {
+        let lower = title.lowercased()
+        if !allowSpoilers && isLikelySpoiler(title: title, lower: lower) {
+            return "Looks like a spoiler (score / result verb). Flip the eye icon on Highlights to show spoilers."
+        }
+        for term in customBlocklist {
+            let t = term.trimmingCharacters(in: .whitespaces).lowercased()
+            if !t.isEmpty, lower.contains(t) {
+                return "Matches your custom blocklist term: \"\(term)\"."
+            }
+        }
+        if englishOnly && !isLikelyEnglish(title: title, lower: lower) {
+            return "Non-English title. Turn off 'English highlights only' in Advanced settings to include this."
+        }
+        for kw in Self.builtInRejectKeywords where lower.contains(kw) {
+            return "Matches built-in reject term: \"\(kw)\"."
+        }
+        if lower.range(of: #"rounds?\s+\d+\s*[-–to]+\s*\d"#, options: .regularExpression) != nil {
+            return "Looks like a season-round compilation ('Rounds X-Y')."
+        }
+        return nil
+    }
+
+    /// Public copy of the reject keyword list so the tester can iterate them
+    /// without duplicating the constant. Keep in sync with the private list
+    /// used by isMatchHighlight.
+    static let builtInRejectKeywords: [String] = [
+        "#shorts", " shorts ", "shorts |", "tiktok", "instagram",
+        "best moments", "best of", "best try", "best tries", "best goal", "best goals",
+        "best moment", "best save", "best saves", "best wickets", "best catches",
+        "biggest", "incredible", "insane", "amazing", "stunning", "epic", "wild",
+        "must-see", "must see", "wow",
+        "top 5", "top 10", "top ten", "top five",
+        "of the week", "of the month", "of the season", "of the year",
+        "every goal", "every try", "every wicket", "every six", "every basket",
+        "all goals", "all tries", "all wickets", "all sixes", "all dunks",
+        "player of", "team of",
+        "compilation",
+        "press conference", "presser", "post-match interview",
+        "media call", "media conference",
+        "preview", "podcast", "fans react", "tribute",
+        "behind the scenes", "bonus features", "extras",
+        "escapes", "tackles only", "saves only", "goals only",
+        "ranked", "moments only",
+        "takes questions", "questions ahead",
+        "watch live", "live now",
+        "train before", "training", "in training",
+    ]
+
     // MARK: - Spoiler detection
 
     private static let spoilerVerbs: [String] = [
@@ -144,6 +195,57 @@ enum HighlightsFilter {
     ]
 
     private static let scoreRegex = #"\b\d{1,3}\s*[-–]\s*\d{1,3}\b"#
+
+    // MARK: - Language detection
+
+    /// Explicit non-English tags that broadcasters add when re-uploading the
+    /// same clip per language (FIFA, ICC, UEFA, DAZN etc all do this).
+    private static let nonEnglishMarkers: [String] = [
+        // language names in English (as they appear in titles)
+        " hindi", "in hindi", "hindi commentary", "hindi highlights",
+        " tamil", "in tamil", "tamil commentary",
+        " telugu", "in telugu",
+        " bengali", "in bengali",
+        " marathi", "in marathi",
+        " urdu", "in urdu", "urdu commentary",
+        " arabic", "in arabic",
+        " español", "en español", "español highlights",
+        " spanish", "in spanish",
+        " português", "em português",
+        " portuguese", "in portuguese",
+        " français", "en français",
+        " french", "in french",
+        " deutsch", "auf deutsch",
+        " german", "in german",
+        " italiano", "in italiano",
+        " italian", "in italian",
+        " nederlands", "in nederlands",
+        " dutch", "in dutch",
+        " russian", "in russian", " русский",
+        " japanese", "in japanese", " 日本語",
+        " korean", "in korean", " 한국어",
+        " chinese", "in chinese", " mandarin", " cantonese",
+        " indonesian", "bahasa",
+        " thai", "in thai",
+        " vietnamese", "in vietnamese",
+        " turkish", "in turkish", " türkçe",
+        " polish", "in polish", " polski",
+        " swahili", "in swahili",
+    ]
+
+    private static func isLikelyEnglish(title: String, lower: String) -> Bool {
+        // Explicit non-English language marker → not English.
+        for marker in nonEnglishMarkers where lower.contains(marker) { return false }
+
+        // Non-ASCII heavy title → likely non-English script.
+        let asciiCount = title.unicodeScalars.reduce(0) { $0 + ($1.isASCII ? 1 : 0) }
+        let total = title.unicodeScalars.count
+        guard total > 0 else { return true }
+        let nonAsciiRatio = 1.0 - (Double(asciiCount) / Double(total))
+        if nonAsciiRatio > 0.3 { return false }
+
+        return true
+    }
 
     private static func isLikelySpoiler(title: String, lower: String) -> Bool {
         // Numeric score line gives away the result.

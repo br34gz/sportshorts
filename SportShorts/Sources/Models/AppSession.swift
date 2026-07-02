@@ -42,6 +42,20 @@ final class AppSession {
         didSet { UserDefaults.standard.set(allowSpoilers, forKey: "sportshorts.allow_spoilers") }
     }
 
+    /// User-defined reject substrings. Any title containing one of these
+    /// (case-insensitive) is dropped by HighlightsFilter. Managed from
+    /// Settings → Advanced.
+    var customBlocklist: [String] {
+        didSet { UserDefaults.standard.set(customBlocklist, forKey: "sportshorts.custom_blocklist") }
+    }
+
+    /// When true (default), the feed drops videos titled in non-English
+    /// languages — targets FIFA/ICC-style channels that publish the same
+    /// highlight in a dozen languages.
+    var englishOnly: Bool {
+        didSet { UserDefaults.standard.set(englishOnly, forKey: "sportshorts.english_only") }
+    }
+
     var catalog: Catalog = .empty
     var feed: [VideoItem] = []
     var isLoadingFeed = false
@@ -55,6 +69,14 @@ final class AppSession {
         self.followedCompetitionIds = Self.loadSet("sportshorts.followed_comps")
         self.hiddenChannelIds = Self.loadSet("sportshorts.hidden_channels")
         self.allowSpoilers = UserDefaults.standard.bool(forKey: "sportshorts.allow_spoilers")
+        self.customBlocklist = (UserDefaults.standard.array(forKey: "sportshorts.custom_blocklist") as? [String]) ?? []
+        // englishOnly defaults to TRUE. Distinguish "never set" from "explicitly false".
+        if UserDefaults.standard.object(forKey: "sportshorts.english_only") == nil {
+            self.englishOnly = true
+            UserDefaults.standard.set(true, forKey: "sportshorts.english_only")
+        } else {
+            self.englishOnly = UserDefaults.standard.bool(forKey: "sportshorts.english_only")
+        }
 
         if let data = UserDefaults.standard.data(forKey: "sportshorts.user_channels"),
            let decoded = try? JSONDecoder().decode([YouTubeChannel].self, from: data) {
