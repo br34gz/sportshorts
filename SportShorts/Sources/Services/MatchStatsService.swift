@@ -63,7 +63,9 @@ enum MatchStatsService {
 
         // Basketball
         "nba": .init(espnSport: "basketball", espnLeague: "nba", stats: basketballStats),
-        "nbl": .init(espnSport: "basketball", espnLeague: "nbl", stats: basketballStats),
+
+        // Baseball
+        "mlb": .init(espnSport: "baseball",   espnLeague: "mlb", stats: mlbStats),
 
         // American football
         "nfl": .init(espnSport: "football",   espnLeague: "nfl", stats: nflStats),
@@ -111,6 +113,15 @@ enum MatchStatsService {
         ("blocks",                                     "Blocks",        false),
         ("turnovers",                                  "Turnovers",     false),
         ("personalFouls",                              "Fouls",         false),
+    ]
+
+    private static let mlbStats: [(String, String, Bool)] = [
+        ("hits",   "Hits",         false),
+        ("runs",   "Runs",         false),
+        ("errors", "Errors",       false),
+        ("avg",    "Batting Avg",  false),   // '.256' — non-numeric percent, skip ratio bar
+        ("ERA",    "ERA",          false),
+        ("saves",  "Saves",        false),
     ]
 
     private static let nflStats: [(String, String, Bool)] = [
@@ -560,7 +571,12 @@ enum MatchStatsService {
                 }
 
                 let eventId = event["id"] as? String ?? ""
-                let lines = await fetchStatLines(config: config, eventId: eventId, homeAbbr: teamAbbr(home), awayAbbr: teamAbbr(away))
+                // Try scoreboard-level statistics first (MLB puts them there).
+                // Fall back to the summary endpoint (soccer/NBA/NFL/NHL/AFL layout).
+                var lines = buildStatLines(config: config, home: home, away: away)
+                if lines.isEmpty {
+                    lines = await fetchStatLines(config: config, eventId: eventId, homeAbbr: teamAbbr(home), awayAbbr: teamAbbr(away))
+                }
 
                 return MatchStats(
                     homeTeam: homeName,
@@ -582,6 +598,33 @@ enum MatchStatsService {
             return nil
         }
         return nil
+    }
+
+    /// Build stat lines from stats already present on the scoreboard's
+    /// competitor entries (used by MLB where statistics[] lives right there).
+    private static func buildStatLines(config: SportConfig, home: [String: Any], away: [String: Any]) -> [MatchStats.StatLine] {
+        var homeByKey: [String: String] = [:]
+        for s in (home["statistics"] as? [[String: Any]]) ?? [] {
+            if let n = s["name"] as? String, let v = s["displayValue"] as? String {
+                homeByKey[n] = v
+            }
+        }
+        var awayByKey: [String: String] = [:]
+        for s in (away["statistics"] as? [[String: Any]]) ?? [] {
+            if let n = s["name"] as? String, let v = s["displayValue"] as? String {
+                awayByKey[n] = v
+            }
+        }
+        var lines: [MatchStats.StatLine] = []
+        for (key, label, _) in config.stats {
+            guard let h = homeByKey[key], let a = awayByKey[key] else { continue }
+            let homeNum = Double(numericPart(h)) ?? 0
+            let awayNum = Double(numericPart(a)) ?? 0
+            let total = homeNum + awayNum
+            let ratio: Double? = total > 0 ? max(0, min(1, homeNum / total)) : nil
+            lines.append(.init(label: label, home: h, away: a, homeRatio: ratio))
+        }
+        return lines
     }
 
     private static func fetchStatLines(config: SportConfig, eventId: String, homeAbbr: String, awayAbbr: String) async -> [MatchStats.StatLine] {

@@ -37,21 +37,21 @@
       ]
     },
     {
+      "id": "mlb",
+      "label": "MLB",
+      "icon": "baseball.fill",
+      "keywords": ["mlb", "world series", "yankees", "red sox", "dodgers", "cubs", "mets", "cardinals", "giants", "braves", "phillies", "astros", "rangers", "blue jays", "orioles", "guardians", "twins", "brewers", "reds", "pirates", "marlins", "nationals", "padres", "rockies", "diamondbacks", "mariners", "royals", "athletics", "angels", "rays", "white sox", "tigers"],
+      "competitions": [
+        {"id": "mlb", "label": "MLB", "keywords": ["mlb"]}
+      ]
+    },
+    {
       "id": "nhl",
       "label": "NHL",
       "icon": "hockey.puck.fill",
       "keywords": ["nhl", "stanley cup"],
       "competitions": [
         {"id": "nhl", "label": "NHL", "keywords": ["nhl"]}
-      ]
-    },
-    {
-      "id": "nbl",
-      "label": "NBL",
-      "icon": "basketball.fill",
-      "keywords": ["nbl", "nbl1"],
-      "competitions": [
-        {"id": "nbl", "label": "NBL", "keywords": ["nbl"]}
       ]
     },
     {
@@ -149,6 +149,8 @@
       {"channel_id": "UCwNqHDsnBCKT-olwJwIFyfg", "name": "FOX Sports", "handle": "FOXSports", "sport_hints": []},
       {"channel_id": "UCooTLkxcpnTNx6vfOovfBFA", "name": "Fox Soccer", "handle": "FoxSoccer", "sport_hints": ["soccer"]},
       {"channel_id": "UCpAOOYpwZ3yAi4EtTGPjeag", "name": "Peacock Sports", "handle": "PeacockSports", "sport_hints": []},
+      {"channel_id": "UCnfdlSStduhKXE9Qp9-edsA", "name": "MLB Network", "handle": "MLBNetwork", "sport_hints": ["mlb"]},
+      {"channel_id": "UCl9E4Zxa8CVr2LBLD0_TaNg", "name": "Jomboy Media", "handle": "JomboyMedia", "sport_hints": ["mlb"]},
       {"channel_id": "UC-tT3SB31qdsC-n6RUNtudA", "name": "Paramount+ Sports", "handle": "ParamountPlusSports", "sport_hints": []},
       {"channel_id": "UCXOkfdEKC-MhNq3CX5rI6Bw", "name": "Prime Video Sports", "handle": "primevideosports", "sport_hints": []},
       {"channel_id": "UCk1pcWQ5E19g0Cgp4c1eI1w", "name": "U.S. Soccer", "handle": "USSoccer", "sport_hints": ["soccer"]},
@@ -194,7 +196,7 @@
     {"channel_id": "UCDVYQ4Zhbm3S2dlz7P1GBDg", "name": "NFL", "handle": "NFL", "sport_hints": ["nfl"]},
     {"channel_id": "UCWJ2lWNubArHWmf3FIHbfcQ", "name": "NBA", "handle": "NBA", "sport_hints": ["nba"]},
     {"channel_id": "UCqFMzb-4AUf6WAIbl132QKA", "name": "NHL", "handle": "NHL", "sport_hints": ["nhl"]},
-    {"channel_id": "UCoLrcjPV5PbUrUyXq5mjc_A", "name": "MLB", "handle": "MLB", "sport_hints": []},
+    {"channel_id": "UCoLrcjPV5PbUrUyXq5mjc_A", "name": "MLB", "handle": "MLB", "sport_hints": ["mlb"]},
     {"channel_id": "UCSZbXT5TLLW_i-5W8FZpFsg", "name": "MLS", "handle": "MLS", "sport_hints": ["soccer"]},
     {"channel_id": "UCxAeHdLDAatFV_vt95MSO-g", "name": "AFL", "handle": "afl", "sport_hints": ["afl"]},
     {"channel_id": "UC33-OkQ6VCYk8xtml8Pk4-g", "name": "NRL", "handle": "nrl", "sport_hints": ["nrl"]},
