@@ -2,7 +2,7 @@
 
 A polished iPhone app that pulls sports highlights from the YouTube channels of every major broadcaster in your country, then filters them down to just the sports you follow. No accounts, no backend, no ads.
 
-**Latest release:** [download the unsigned IPA](https://github.com/br34gz/sportshorts/releases/latest/download/SportShorts-unsigned.ipa) — install via [LiveContainer](https://github.com/LiveContainer/LiveContainer) or your preferred sideloader.
+**Latest release:** [download the unsigned IPA](https://github.com/br34gz/sportshorts/releases/latest/download/SportShorts-unsigned.ipa) — sideload with the tool of your choice.
 
 ---
 
@@ -20,7 +20,7 @@ A polished iPhone app that pulls sports highlights from the YouTube channels of 
 ## Install
 
 1. Download the latest IPA: [SportShorts-unsigned.ipa](https://github.com/br34gz/sportshorts/releases/latest/download/SportShorts-unsigned.ipa)
-2. Install via [LiveContainer](https://github.com/LiveContainer/LiveContainer) — the recommended sideloader for iOS 26.
+2. Sideload it onto your iPhone using whichever tool you prefer.
 3. Open, pick your country, pick your sports, done.
 
 **Requires iOS 26** (Liquid Glass design language is used throughout).
