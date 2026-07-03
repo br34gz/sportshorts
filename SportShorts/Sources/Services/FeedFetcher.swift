@@ -80,9 +80,17 @@ enum FeedFetcher {
         }
         let deduped = Array(byId.values)
 
-        // 7-day recency window.
+        // 7-day recency window for YouTube. Reddit items skip the cutoff
+        // because low-volume highlights subs surface older-but-still-good
+        // content via 'hot' — we trust Reddit's sort. Users can toggle a
+        // sub off if it's noisy.
         let cutoff = Calendar(identifier: .gregorian).date(byAdding: .day, value: -7, to: Date()) ?? Date(timeIntervalSinceNow: -7 * 86_400)
-        let recent = deduped.filter { $0.publishedAt >= cutoff }
+        let recent = deduped.filter { item in
+            switch item.origin {
+            case .youtubeChannel: return item.publishedAt >= cutoff
+            case .subreddit:      return true
+            }
+        }
         return recent.sorted { $0.publishedAt > $1.publishedAt }
     }
 
