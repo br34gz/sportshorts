@@ -63,9 +63,11 @@ enum HighlightsFilter {
             // Require at least one positive signal that this is actual
             // highlight content — score, team pattern, goal/highlight
             // verb, or the Reddit-scoring bracket convention "[1]".
-            if title.range(of: scoreRegex, options: .regularExpression) != nil { return true }
+            let scoreRe = #"\b\d{1,3}\s*[-–]\s*\d{1,3}\b"#
+            let teamRe  = #"\b[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\s+v(?:s|s\.)?\s+[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){0,3}\b"#
+            if title.range(of: scoreRe, options: .regularExpression) != nil { return true }
             if title.range(of: #"\[\d+\]"#, options: .regularExpression) != nil { return true }   // [1] Arsenal — reddit convention
-            if title.range(of: teamVsTeamRegex, options: .regularExpression) != nil { return true }
+            if title.range(of: teamRe, options: .regularExpression) != nil { return true }
             let highlightSignal = [" goal ", "goal!", "goal.", " scores ", " scored ",
                                     " highlight", "highlights", " try ", " tries ",
                                     " td ", " touchdown", " home run", " homer ", " ace ",
