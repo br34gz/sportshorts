@@ -51,11 +51,30 @@ enum HighlightsFilter {
             }
         }
 
-        // Reddit relaxation: trust the sub's curation. Skip the positive-signal
-        // requirements (no "match highlights" word needed) and the built-in
-        // hard-reject keyword list. Users still get spoiler + custom blocklist
-        // protection.
-        if relaxedForReddit { return true }
+        // Reddit relaxation: skip the built-in reject-keyword list (Reddit
+        // titles rarely conform to those patterns), but still require SOME
+        // highlight-shape signal so we don't surface opinion/discussion posts
+        // with random screenshots.
+        if relaxedForReddit {
+            // Discussion-style patterns — reject outright.
+            for kw in Self.redditDiscussionRejects where lower.contains(kw) {
+                return false
+            }
+            // Require at least one positive signal that this is actual
+            // highlight content — score, team pattern, goal/highlight
+            // verb, or the Reddit-scoring bracket convention "[1]".
+            if title.range(of: scoreRegex, options: .regularExpression) != nil { return true }
+            if title.range(of: #"\[\d+\]"#, options: .regularExpression) != nil { return true }   // [1] Arsenal — reddit convention
+            if title.range(of: teamVsTeamRegex, options: .regularExpression) != nil { return true }
+            let highlightSignal = [" goal ", "goal!", "goal.", " scores ", " scored ",
+                                    " highlight", "highlights", " try ", " tries ",
+                                    " td ", " touchdown", " home run", " homer ", " ace ",
+                                    " assist", " basket", " dunk ", " ko ",
+                                    " point ", " points ", " win ", " goal:", "goal|",
+                                    " brace", " hat trick", " hat-trick"]
+            for sig in highlightSignal where lower.contains(sig) { return true }
+            return false
+        }
 
         // 1. Hard rejects — any of these wins, video is dropped.
         for kw in Self.builtInRejectKeywords where lower.contains(kw) {
@@ -219,6 +238,22 @@ enum HighlightsFilter {
     ]
 
     private static let scoreRegex = #"\b\d{1,3}\s*[-–]\s*\d{1,3}\b"#
+
+    // MARK: - Reddit discussion rejects
+
+    /// Patterns that reliably identify opinion / discussion / meta posts on
+    /// highlight subs, so we don't ship a "rigged referee???" screenshot as
+    /// a highlight.
+    private static let redditDiscussionRejects: [String] = [
+        " rigged", " biased", " bias ", " unfair",
+        " opinion", " unpopular ", " rant ", " hot take",
+        " thoughts?", " discuss", " controversy", " controversial",
+        " why is", " why does", " why don't", " why can't",
+        " am i the only", " does anyone", " looking for",
+        "megathread", "match thread", "official thread", "post match thread",
+        "hate ", "love or hate", "worst ",
+        "help me", "recommendation", "recommend me",
+    ]
 
     // MARK: - Language detection
 
